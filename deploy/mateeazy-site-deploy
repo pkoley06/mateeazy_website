@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# mateeazy.in website deploy (runs on the VM)
+# Installed at: /usr/local/bin/mateeazy-site-deploy (root:root, mode 0755)
+#
+# It is the *forced command* of the website CI key in /home/deploy/.ssh/authorized_keys:
+#   restrict,command="/usr/local/bin/mateeazy-site-deploy" ssh-ed25519 AAAA... github-deploy@mateeazy_website
+# so that key can do nothing except this. CI runs:
+#   tar -czf - -C dist . | ssh deploy@<vm> deploy <commit-sha>
+# and the files land in /var/www/mateeazy-site (https://mateeazy.in).
+# ==============================================================================
+set -euo pipefail
+
+DEST="/var/www/mateeazy-site"
+
+read -r ACTION SHA _ <<< "${SSH_ORIGINAL_COMMAND:-${*:-}}"
+if [ "${ACTION:-}" != "deploy" ] || ! [[ "${SHA:-}" =~ ^[0-9a-f]{7,40}$ ]]; then
+    echo "Error: expected 'deploy <commit-sha>' (got '${SSH_ORIGINAL_COMMAND:-${*:-}}')." >&2
+    exit 1
+fi
+
+if [ ! -d "${DEST}" ] || [ ! -w "${DEST}" ]; then
+    echo "Error: ${DEST} is missing or not writable by $(id -un)." >&2
+    exit 1
+fi
+
+TMP_DIR="$(mktemp -d /tmp/site-deploy.XXXXXX)"
+trap 'rm -rf "${TMP_DIR}"' EXIT
+
+# The site arrives as a .tar.gz on stdin (capped at 100 MB).
+head -c 100000000 | tar -xzf - -C "${TMP_DIR}" --no-same-owner
+
+if [ ! -f "${TMP_DIR}/index.html" ] || [ ! -f "${TMP_DIR}/main.js" ]; then
+    echo "Error: upload is not the website (index.html / main.js missing)." >&2
+    exit 1
+fi
+
+# Lets CI (and you) check which commit is live: https://mateeazy.in/version.txt
+printf '%s\n' "${SHA}" > "${TMP_DIR}/version.txt"
+
+# --delay-updates swaps the files in at the end, so visitors never load a half-copied
+# site; --no-links drops symlinks so nothing can point nginx outside the web root.
+rsync -a --no-links --delete --delay-updates --chmod=D755,F644 "${TMP_DIR}/" "${DEST}/"
+
+echo "Website deployed to ${DEST} (commit ${SHA})."

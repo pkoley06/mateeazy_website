@@ -63,7 +63,42 @@ npx qrcode@1.5.4 -t svg -e M -m 2 -d 2B1B3D -l FFF8F0 -o assets/img/qr-play.svg 
 
 ---
 
-## Deploy to the OCI VM (first time)
+## CI/CD (GitHub Actions)
+
+`.github/workflows/deploy.yml`:
+
+| Event | What runs |
+|---|---|
+| Pull request into `main` | Checks only: `main.js` has no syntax errors, every file the pages link to exists |
+| Push to `main` (or "Run workflow") | Checks, then deploy to https://mateeazy.in, then verify the live site |
+
+The deploy job uploads the site (everything except `.github/`, `deploy/` and this README) as a
+`.tar.gz` over SSH as the VM's `deploy` user. That user's key for this repo is locked to one
+command, `deploy/mateeazy-site-deploy` (installed at `/usr/local/bin/mateeazy-site-deploy`). It can
+only replace the files in `/var/www/mateeazy-site`, nothing else. The script writes the commit
+hash to https://mateeazy.in/version.txt, and the workflow checks that the live site serves it.
+
+**Repository secrets** (Settings → Secrets and variables → Actions):
+
+| Secret | Value |
+|---|---|
+| `SITE_DEPLOY_SSH_KEY` | private key of the website deploy key (`mateeazy_site_deploy`) |
+| `OCI_HOST` | `130.210.45.27` |
+| `OCI_KNOWN_HOSTS` | output of `ssh-keyscan 130.210.45.27` |
+
+**One-time VM setup** (already done once; repeat only on a new VM or a new key):
+```bash
+sudo install -o root -g root -m 0755 ~/mateeazy-site-deploy /usr/local/bin/mateeazy-site-deploy
+sudo chown -R deploy:deploy /var/www/mateeazy-site
+echo "restrict,command=\"/usr/local/bin/mateeazy-site-deploy\" $(cat ~/mateeazy_site_deploy.pub)" \
+  | sudo tee -a /home/deploy/.ssh/authorized_keys
+```
+If you change `deploy/mateeazy-site-deploy`, copy it to the VM and run the `install` line again.
+CI doesn't update it.
+
+---
+
+## Deploy to the OCI VM (first time, by hand)
 
 The site is served by nginx on the same VM as the API, next to `api.mateeazy.in` and `admin.mateeazy.in`.
 
@@ -149,4 +184,5 @@ QR scans, the app tour plays in the phone, the match demo reacts.
 
 ## Update the site later
 
-Edit files here, preview locally, then repeat **steps 2 and 3**. Nothing to restart.
+Edit files here, preview locally, commit and push to `main`. GitHub Actions deploys it
+(see **CI/CD** above). Steps 2 and 3 are only a fallback if Actions is down.

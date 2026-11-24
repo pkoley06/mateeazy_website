@@ -52,7 +52,9 @@ Opening `index.html` straight from disk won't work, because paths start with `/`
 | On the site | Source of truth |
 |---|---|
 | Match-score demo (`main.js`, weights and scores) | `mateeazy_backend/.../service/MatchingHeuristicEngine.java` |
-| Search radius "2 to 30 km" | `matchmate_flutter/.../discovery/presentation/search_preferences_sheet.dart` |
+| Search radius "2 to 30 km" (app currently allows 2 to 50) | `DiscoveryFilters.minRadiusKm` / `maxRadiusKm` in `matchmate_flutter/.../discovery/domain/discovery_card.dart` |
+| `.well-known/assetlinks.json` (App Links) | package `com.mateeazy.app` + the SHA-256 of the Play **app signing** key (Play Console → App integrity) and of the upload key |
+| `/room/{id}`, `/post/{id}` links | proxied to the API (nginx section below); the app's manifest claims them |
 | Play Store link and QR (`assets/img/qr-play.svg`) | package `com.mateeazy.app` |
 | Privacy / terms / delete-account links | the `mateeazy-legal` GitHub Pages site |
 
@@ -151,6 +153,23 @@ server {
 
     location / {
         try_files $uri $uri/ =404;
+    }
+
+    # Android App Links: proves the MateEazy app owns mateeazy.in/room/* and /post/* links.
+    location = /.well-known/assetlinks.json {
+        default_type application/json;
+        add_header Cache-Control "public, max-age=3600";
+    }
+
+    # Shared rooms / community posts. The app opens these links itself; this page is what
+    # WhatsApp-style link previews read and what people without the app see. Rendered by
+    # the production API (SharePageController), which only previews public-safe fields.
+    location ~ "^/(room|post)/[0-9a-fA-F-]{36}/?$" {
+        proxy_pass http://127.0.0.1:8080/share$request_uri;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     # HTML always fresh; images/videos/CSS/JS cached for a week

@@ -33,6 +33,9 @@ jobs:
       - name: JavaScript has no syntax errors
         run: node --check main.js
 
+      - name: App Links file is valid JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('.well-known/assetlinks.json','utf8'))"
+
       - name: Every file the pages link to exists
         run: |
           # Local paths in src, href, data-video and data-poster ("/assets/…").

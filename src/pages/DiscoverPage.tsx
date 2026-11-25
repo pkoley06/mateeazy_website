@@ -6,6 +6,8 @@ import {
   Heart,
   Sparkles,
   Plus,
+  Briefcase,
+  ArrowRight,
 } from 'lucide-react';
 import { discoveryApi, listingApi, userApi, type DiscoveryParams } from '../api/endpoints';
 import type { DiscoveryCard } from '../types/api';
@@ -20,6 +22,7 @@ export function DiscoverPage() {
 
   const [cards, setCards] = useState<DiscoveryCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [geoReady, setGeoReady] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [coords, setCoords] = useState<{ lat: number; lng: number }>({
     lat: 12.9716,
@@ -31,22 +34,40 @@ export function DiscoverPage() {
   });
 
   useEffect(() => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      setGeoReady(true);
+      return;
+    }
+    let settled = false;
+    const finish = () => {
+      if (!settled) {
+        settled = true;
+        setGeoReady(true);
+      }
+    };
+    const fallbackTimer = setTimeout(finish, 2000);
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        clearTimeout(fallbackTimer);
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         setCoords({ lat, lng });
         userApi.updateLocation(lat, lng).catch(() => {});
+        finish();
       },
       () => {
-        // Keep default coordinates if permission denied
+        clearTimeout(fallbackTimer);
+        finish();
       },
-      { timeout: 5000 }
+      { timeout: 2000, maximumAge: 60000 }
     );
+
+    return () => clearTimeout(fallbackTimer);
   }, []);
 
   const loadFeed = useCallback(async () => {
+    if (!geoReady) return;
     setLoading(true);
     try {
       const res = await discoveryApi.getFeed({
@@ -64,7 +85,7 @@ export function DiscoverPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, coords, showToast]);
+  }, [filters, coords, geoReady, showToast]);
 
   useEffect(() => {
     void loadFeed();
@@ -125,7 +146,7 @@ export function DiscoverPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
             type="button"
             className={`chip ${profile?.isRoomSeeker ? 'active' : ''}`}
@@ -158,7 +179,7 @@ export function DiscoverPage() {
       </div>
 
       {/* Feed Grid */}
-      {loading ? (
+      {loading || !geoReady ? (
         <div
           style={{
             display: 'grid',
@@ -168,7 +189,7 @@ export function DiscoverPage() {
         >
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="card" style={{ overflow: 'hidden' }}>
-              <div className="skeleton" style={{ aspectRatio: '4/3', borderRadius: 0 }} />
+              <div className="skeleton" style={{ height: 196, borderRadius: 0 }} />
               <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div className="skeleton" style={{ height: 18, width: '75%' }} />
                 <div className="skeleton" style={{ height: 13, width: '50%' }} />
@@ -195,36 +216,151 @@ export function DiscoverPage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
             gap: 16,
+            alignItems: 'start',
           }}
         >
           {cards.map((card, idx) => {
             const isRoom = Boolean(card.listingId);
-            const cover =
-              card.photoUrls[0] ||
-              card.avatarUrl ||
-              '/assets/img/room-balcony.jpg';
+
+            if (!isRoom) {
+              // Flatmate / Seeker Card (distinct from Room card)
+              return (
+                <article
+                  key={`seeker-${card.hostUserId}-${idx}`}
+                  className="card card-interactive"
+                  style={{
+                    padding: 18,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 12,
+                  }}
+                  onClick={() => navigate(`/users/${card.hostUserId}`)}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <img
+                      src={card.avatarUrl || '/assets/img/avatar-priya.png'}
+                      alt={card.hostName}
+                      style={{
+                        width: 60,
+                        height: 60,
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        flexShrink: 0,
+                        border: '2px solid var(--coral)',
+                      }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <h3
+                          style={{
+                            fontSize: 17,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {card.hostName}, {card.hostAge}
+                        </h3>
+                        {card.matchPercentage != null && (
+                          <span className="chip gold" style={{ flexShrink: 0 }}>
+                            {Math.round(card.matchPercentage)}%
+                          </span>
+                        )}
+                      </div>
+                      {card.occupationTitle && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+                          <Briefcase size={12} />
+                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {card.occupationTitle}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span className="chip coral" style={{ fontSize: 11 }}>
+                      {card.seekerGoal === 'MATE' ? 'Looking for a flatmate' : 'Looking for a room'}
+                    </span>
+                    {card.rentAmount != null && (
+                      <strong style={{ fontSize: 14, color: 'var(--text)' }}>
+                        Budget ₹{card.rentAmount.toLocaleString('en-IN')}/mo
+                      </strong>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--muted)' }}>
+                    <MapPin size={13} />
+                    <span>
+                      {card.localityName}
+                      {card.distanceKm != null ? ` · ${card.distanceKm.toFixed(1)} km` : ''}
+                    </span>
+                  </div>
+
+                  {card.compatibilityHighlights.length > 0 && (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {card.compatibilityHighlights.slice(0, 3).map((h) => (
+                        <span key={h} className="chip" style={{ fontSize: 11 }}>
+                          {h}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div
+                    style={{
+                      paddingTop: 10,
+                      borderTop: '1px solid var(--border)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: 'var(--coral)',
+                    }}
+                  >
+                    <span>View flatmate profile</span>
+                    <ArrowRight size={14} />
+                  </div>
+                </article>
+              );
+            }
+
+            // Room Listing Card (fixed uniform 196px image box)
+            const cover = card.photoUrls[0] || '/assets/img/room-balcony.jpg';
             return (
               <article
-                key={card.listingId || `${card.hostUserId}-${idx}`}
+                key={card.listingId!}
                 className="card card-interactive"
                 style={{ overflow: 'hidden', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
-                onClick={() => {
-                  if (isRoom) {
-                    navigate(`/discover/room/${card.listingId}`, {
-                      state: { card },
-                    });
-                  } else {
-                    navigate(`/users/${card.hostUserId}`);
-                  }
-                }}
+                onClick={() =>
+                  navigate(`/discover/room/${card.listingId}`, {
+                    state: { card },
+                  })
+                }
               >
-                <div style={{ position: 'relative', aspectRatio: '4/3', background: 'var(--surface-alt)' }}>
+                <div
+                  style={{
+                    position: 'relative',
+                    width: '100%',
+                    height: 196,
+                    background: 'var(--surface-alt)',
+                    overflow: 'hidden',
+                  }}
+                >
                   <img
                     src={cover}
-                    alt={card.title || card.hostName}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    alt={card.title || 'Room'}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                    }}
                   />
                   {card.matchPercentage != null && (
                     <span
@@ -239,34 +375,32 @@ export function DiscoverPage() {
                       {Math.round(card.matchPercentage)}% match
                     </span>
                   )}
-                  {isRoom && (
-                    <button
-                      type="button"
-                      onClick={(e) => toggleLike(e, card)}
-                      aria-label="Save room"
-                      style={{
-                        position: 'absolute',
-                        top: 10,
-                        right: 10,
-                        width: 34,
-                        height: 34,
-                        borderRadius: '50%',
-                        border: 'none',
-                        background: 'rgba(255,255,255,0.9)',
-                        display: 'grid',
-                        placeItems: 'center',
-                      }}
-                    >
-                      <Heart
-                        size={17}
-                        fill={card.likedByMe ? '#FF6B5B' : 'none'}
-                        color={card.likedByMe ? '#FF6B5B' : '#2B1B3D'}
-                      />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => toggleLike(e, card)}
+                    aria-label="Save room"
+                    style={{
+                      position: 'absolute',
+                      top: 10,
+                      right: 10,
+                      width: 34,
+                      height: 34,
+                      borderRadius: '50%',
+                      border: 'none',
+                      background: 'rgba(255,255,255,0.92)',
+                      display: 'grid',
+                      placeItems: 'center',
+                    }}
+                  >
+                    <Heart
+                      size={17}
+                      fill={card.likedByMe ? '#FF6B5B' : 'none'}
+                      color={card.likedByMe ? '#FF6B5B' : '#2B1B3D'}
+                    />
+                  </button>
                 </div>
 
-                <div style={{ padding: 14, flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
                     <h3
                       style={{
@@ -277,9 +411,7 @@ export function DiscoverPage() {
                       }}
                     >
                       {card.title ||
-                        (isRoom
-                          ? `${card.roomType === 'PRIVATE' ? 'Private' : 'Shared'} room`
-                          : `${card.hostName}, ${card.hostAge}`)}
+                        `${card.roomType === 'PRIVATE' ? 'Private' : 'Shared'} room in ${card.localityName}`}
                     </h3>
                     {card.rentAmount != null && (
                       <strong style={{ color: 'var(--coral)', fontSize: 15, flexShrink: 0 }}>
@@ -296,7 +428,7 @@ export function DiscoverPage() {
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
                     {card.roomType && (
                       <span className="chip" style={{ fontSize: 11 }}>
                         {card.roomType === 'PRIVATE' ? 'Private room' : 'Shared room'}
@@ -311,7 +443,7 @@ export function DiscoverPage() {
 
                   <div
                     style={{
-                      marginTop: 'auto',
+                      marginTop: 6,
                       paddingTop: 10,
                       borderTop: '1px solid var(--border)',
                       display: 'flex',

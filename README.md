@@ -152,7 +152,7 @@ server {
     gzip_types text/css application/javascript image/svg+xml application/xml text/plain;
 
     location / {
-        try_files $uri $uri/ =404;
+        try_files $uri $uri/ /index.html;
     }
 
     # Android App Links: proves the MateEazy app owns mateeazy.in/room/* and /post/* links.
@@ -161,11 +161,16 @@ server {
         add_header Cache-Control "public, max-age=3600";
     }
 
-    # Shared rooms / community posts. The app opens these links itself; this page is what
-    # WhatsApp-style link previews read and what people without the app see. Rendered by
-    # the production API (SharePageController), which only previews public-safe fields.
+    # Shared rooms / community posts:
+    # - Link-preview bots (WhatsApp, Telegram, Twitter, etc.) get server-rendered Open Graph
+    #   tags from the API's SharePageController.
+    # - Human visitors without the app fall through to /index.html and land directly in the
+    #   web app with the same sign-in -> room/post flow as the Android app.
     location ~ "^/(room|post)/[0-9a-fA-F-]{36}/?$" {
-        proxy_pass http://127.0.0.1:8080/share$request_uri;
+        if ($http_user_agent ~* "(WhatsApp|TelegramBot|facebookexternalhit|Twitterbot|LinkedInBot|Slackbot|Discordbot|Googlebot|bingbot)") {
+            proxy_pass http://127.0.0.1:8080/share$request_uri;
+        }
+        try_files $uri /index.html;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

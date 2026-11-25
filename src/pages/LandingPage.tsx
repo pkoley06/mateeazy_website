@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { trackEvent } from '../config/analytics';
 import '../../styles.css';
 
 const TOUR_TABS = [
@@ -256,7 +257,11 @@ export function LandingPage() {
               </p>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 20, marginBottom: 14 }}>
-                <Link className="btn" to={isSignedIn ? '/home' : '/welcome'}>
+                <Link
+                  className="btn"
+                  to={isSignedIn ? '/home' : '/welcome'}
+                  onClick={() => trackEvent('web_app_cta_click', { source: 'hero' })}
+                >
                   {isSignedIn ? 'Open MateEazy Web' : 'Sign in / Use Web App'}
                 </Link>
               </div>
@@ -267,6 +272,7 @@ export function LandingPage() {
                   href="https://play.google.com/store/apps/details?id=com.mateeazy.app"
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => trackEvent('play_store_click', { source: 'hero' })}
                 >
                   <img src="/assets/img/google-play-badge.png" alt="Get it on Google Play" width={646} height={250} />
                 </a>

@@ -19,5 +19,7 @@ export const ENV = {
     messagingSenderId:
       import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '96144317653',
     appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+    measurementId:
+      import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-V1M3M8RRW8',
   },
 } as const;

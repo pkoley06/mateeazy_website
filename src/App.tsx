@@ -11,6 +11,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { BrandingProvider } from './context/BrandingContext';
 import { AuthProvider, parseSharedPath, useAuth } from './context/AuthContext';
+import { trackPageView } from './config/analytics';
 import { LoadingScreen } from './components/LoadingScreen';
 import { AppShell } from './components/AppShell';
 import { LandingPage } from './pages/LandingPage';
@@ -118,6 +119,14 @@ function PendingDeletionGate() {
   return <PendingDeletionPage />;
 }
 
+function AnalyticsTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    trackPageView(location.pathname + location.search);
+  }, [location.pathname, location.search]);
+  return null;
+}
+
 export function App() {
   return (
     <ThemeProvider>
@@ -125,6 +134,7 @@ export function App() {
         <BrandingProvider>
           <AuthProvider>
             <BrowserRouter>
+              <AnalyticsTracker />
               <Routes>
                 <Route path="/" element={<LandingPage />} />
 

@@ -4,6 +4,7 @@ import { Phone, ArrowLeft, Smartphone, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { signInWithGoogleWeb } from '../config/firebase';
+import { trackEvent } from '../config/analytics';
 import { shareApi } from '../api/endpoints';
 import type { SharePreview } from '../types/api';
 import { ENV } from '../config/env';
@@ -43,6 +44,7 @@ export function WelcomePage() {
     try {
       const idToken = await signInWithGoogleWeb();
       await signInWithFirebaseToken(idToken, 'GOOGLE');
+      trackEvent('login', { method: 'google' });
       showToast('Signed in successfully!', 'success');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Google sign-in failed';

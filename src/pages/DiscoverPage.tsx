@@ -16,6 +16,7 @@ import type { DiscoveryCard } from '../types/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { FilterModal } from '../components/FilterModal';
+import { RoomFinderModal } from '../components/RoomFinderModal';
 
 const SAVED_LOC_KEY = 'mateeazy_last_location';
 
@@ -40,7 +41,7 @@ function getInitialLocation(): { lat: number; lng: number; label: string; hasSav
 }
 
 export function DiscoverPage() {
-  const { profile, refreshProfile } = useAuth();
+  const { profile } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
 
@@ -49,6 +50,7 @@ export function DiscoverPage() {
   const [loading, setLoading] = useState(true);
   const [geoReady, setGeoReady] = useState(initialLoc.hasSaved);
   const [showFilters, setShowFilters] = useState(false);
+  const [showRoomFinder, setShowRoomFinder] = useState(false);
   const [tab, setTab] = useState<'ALL' | 'ROOMS' | 'FLATMATES'>('ALL');
   const [coords, setCoords] = useState<{ lat: number; lng: number }>({
     lat: initialLoc.lat,
@@ -165,22 +167,6 @@ export function DiscoverPage() {
     }
   };
 
-  const toggleRoomSeeker = async () => {
-    if (!profile) return;
-    try {
-      await userApi.updateRoomSeeker({ isRoomSeeker: !profile.isRoomSeeker });
-      await refreshProfile();
-      showToast(
-        !profile.isRoomSeeker
-          ? 'Looking for room mode ON'
-          : 'Looking for room mode OFF',
-        'success'
-      );
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to update', 'error');
-    }
-  };
-
   const toggleLike = async (e: React.MouseEvent, card: DiscoveryCard) => {
     e.stopPropagation();
     if (!card.listingId) return;
@@ -229,10 +215,16 @@ export function DiscoverPage() {
           type="button"
           className={`chip ${profile?.isRoomSeeker ? 'active' : ''}`}
           style={{ padding: '9px 14px', fontSize: 13 }}
-          onClick={toggleRoomSeeker}
+          onClick={() => setShowRoomFinder(true)}
         >
           <Sparkles size={14} />
-          <span>{profile?.isRoomSeeker ? 'Looking for room' : 'Room Finder OFF'}</span>
+          <span>
+            {profile?.isRoomSeeker
+              ? profile.roomFinderGoal === 'MATE'
+                ? 'Looking for mate'
+                : 'Looking for room'
+              : 'Room Finder'}
+          </span>
         </button>
       </div>
 
@@ -656,6 +648,13 @@ export function DiscoverPage() {
           initial={filters}
           onApply={(next) => setFilters(next)}
           onClose={() => setShowFilters(false)}
+        />
+      )}
+
+      {showRoomFinder && (
+        <RoomFinderModal
+          onClose={() => setShowRoomFinder(false)}
+          onSaved={() => void loadFeed()}
         />
       )}
     </div>

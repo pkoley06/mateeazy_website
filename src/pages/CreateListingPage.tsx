@@ -13,6 +13,7 @@ import {
 import { listingApi, uploadApi, userApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { MapPreview } from '../components/MapPreview';
 
 type WizardStep = 0 | 1 | 2 | 3;
 
@@ -524,22 +525,63 @@ export function CreateListingPage() {
 
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={detectLocation}
-              disabled={locating}
-              style={{ alignSelf: 'flex-start' }}
-            >
-              <LocateFixed size={16} color="var(--coral)" />
-              <span>
-                {locating
-                  ? 'Detecting location...'
-                  : hasGps
-                  ? 'Update GPS location'
-                  : 'Use my current GPS location'}
-              </span>
-            </button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={detectLocation}
+                disabled={locating}
+              >
+                <LocateFixed size={16} color="var(--coral)" />
+                <span>
+                  {locating
+                    ? 'Detecting location...'
+                    : hasGps
+                    ? 'Update GPS location'
+                    : 'Use my current GPS location'}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={async () => {
+                  const q = [localityName, city].filter(Boolean).join(', ');
+                  if (!q.trim()) {
+                    showToast('Enter locality or city first to pin on map', 'info');
+                    return;
+                  }
+                  try {
+                    const res = await fetch(
+                      `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q=${encodeURIComponent(q)}`
+                    );
+                    if (res.ok) {
+                      const list = (await res.json()) as Array<{ lat: string; lon: string }>;
+                      if (list[0]) {
+                        setLatitude(parseFloat(list[0].lat));
+                        setLongitude(parseFloat(list[0].lon));
+                        setHasGps(true);
+                        showToast('Map pin updated!', 'success');
+                      }
+                    }
+                  } catch {
+                    showToast('Could not locate area', 'error');
+                  }
+                }}
+              >
+                <MapPin size={16} color="var(--coral)" />
+                <span>Pin area on map</span>
+              </button>
+            </div>
+
+            <MapPreview
+              lat={latitude}
+              lng={longitude}
+              label={
+                [localityName, city].filter(Boolean).join(', ') ||
+                'Room pin preview'
+              }
+              height={180}
+            />
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>

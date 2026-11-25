@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { PhotoGallery } from '../components/PhotoGallery';
 import { CommentSection } from '../components/CommentSection';
+import { MapPreview } from '../components/MapPreview';
 
 export function RoomDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -268,6 +269,18 @@ export function RoomDetailPage() {
                 </span>
               ))}
             </div>
+          </div>
+        )}
+
+        {listing.latitude != null && listing.longitude != null && (
+          <div style={{ marginTop: 20 }}>
+            <h3 style={{ fontSize: 16, marginBottom: 10 }}>Location</h3>
+            <MapPreview
+              lat={listing.latitude}
+              lng={listing.longitude}
+              label={`${listing.localityName}, ${listing.city}`}
+              height={220}
+            />
           </div>
         )}
       </div>

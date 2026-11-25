@@ -91,6 +91,29 @@ export const userApi = {
     apiRequest<void>('/api/v1/users/me/cancel-deletion', { method: 'POST' }),
   deleteAccount: () =>
     apiRequest<void>('/api/v1/users/me', { method: 'DELETE' }),
+  getSearchPreferences: () =>
+    apiRequest<{
+      latitude: number;
+      longitude: number;
+      locality: string;
+      searchRadiusKm: number;
+      hasTarget?: boolean;
+    }>('/api/v1/users/me/search-preferences'),
+  updateSearchPreferences: (payload: {
+    latitude: number;
+    longitude: number;
+    locality: string;
+    searchRadiusKm: number;
+  }) =>
+    apiRequest<{
+      latitude: number;
+      longitude: number;
+      locality: string;
+      searchRadiusKm: number;
+    }>('/api/v1/users/me/search-preferences', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
 };
 
 export interface DiscoveryParams {

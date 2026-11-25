@@ -121,6 +121,30 @@ export function PhotoGallery({
         )}
       </div>
 
+      {photos.length > 1 && (
+        <div style={{ display: 'flex', gap: 10, marginTop: 10, overflowX: 'auto', paddingBottom: 2 }}>
+          {photos.map((src, i) => (
+            <button
+              key={`${src}-${i}`}
+              type="button"
+              onClick={() => setIndex(i)}
+              style={{
+                padding: 0,
+                border: i === index ? '2.5px solid var(--coral)' : '1.5px solid var(--border)',
+                borderRadius: 12,
+                overflow: 'hidden',
+                width: 68,
+                height: 68,
+                flexShrink: 0,
+                background: 'var(--surface-alt)',
+              }}
+            >
+              <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </button>
+          ))}
+        </div>
+      )}
+
       {lightbox && (
         <div
           className="modal-backdrop"

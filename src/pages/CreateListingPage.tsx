@@ -3,10 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   ArrowRight,
-  Camera,
   Check,
   LocateFixed,
   MapPin,
+  Plus,
   Star,
   Trash2,
 } from 'lucide-react';
@@ -17,10 +17,10 @@ import { useToast } from '../context/ToastContext';
 type WizardStep = 0 | 1 | 2 | 3;
 
 const STEPS = [
-  { label: 'Photos', title: 'Add room photos' },
-  { label: 'Location', title: 'Set location' },
-  { label: 'Details', title: 'Room details' },
-  { label: 'Review', title: 'Review listing' },
+  { label: 'Photos', title: 'Let your place say hello.' },
+  { label: 'Location', title: 'Where is your room?' },
+  { label: 'Details', title: 'Tell flatmates about it.' },
+  { label: 'Review', title: 'Ready to publish?' },
 ] as const;
 
 const HOUSE_RULE_OPTIONS = [
@@ -42,13 +42,11 @@ export function CreateListingPage() {
   const [step, setStep] = useState<WizardStep>(0);
   const [loadingInitial, setLoadingInitial] = useState(isEdit);
 
-  // Step 1: Photos
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
 
-  // Step 2: Location
-  const [latitude, setLatitude] = useState<number>(12.9716);
-  const [longitude, setLongitude] = useState<number>(77.5946);
+  const [latitude, setLatitude] = useState<number>(22.5726);
+  const [longitude, setLongitude] = useState<number>(88.3639);
   const [hasGps, setHasGps] = useState(false);
   const [locating, setLocating] = useState(false);
   const [localityName, setLocalityName] = useState('');
@@ -56,7 +54,6 @@ export function CreateListingPage() {
   const [stateName, setStateName] = useState('');
   const [postalCode, setPostalCode] = useState('');
 
-  // Step 3: Details
   const [title, setTitle] = useState('');
   const [rentAmount, setRentAmount] = useState('');
   const [depositAmount, setDepositAmount] = useState('');
@@ -73,7 +70,6 @@ export function CreateListingPage() {
   const [isAvailable, setIsAvailable] = useState(true);
   const [amenities, setAmenities] = useState<string[]>([]);
 
-  // Step 4: Review
   const [findMate, setFindMate] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -117,10 +113,8 @@ export function CreateListingPage() {
     const toUpload = files.slice(0, remaining);
     setUploading(true);
     try {
-      for (const file of toUpload) {
-        const url = await uploadApi.uploadImage(file, 'listings');
-        if (url) setPhotoUrls((prev) => [...prev, url]);
-      }
+      const urls = await uploadApi.uploadListingPhotos(toUpload);
+      if (urls.length) setPhotoUrls((prev) => [...prev, ...urls]);
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Photo upload failed', 'error');
     } finally {
@@ -206,11 +200,9 @@ export function CreateListingPage() {
       showToast('Please add at least 1 photo of the room', 'error');
       return false;
     }
-    if (s === 1) {
-      if (!localityName.trim() || !city.trim()) {
-        showToast('Please enter both locality and city', 'error');
-        return false;
-      }
+    if (s === 1 && (!localityName.trim() || !city.trim())) {
+      showToast('Please enter both locality and city', 'error');
+      return false;
     }
     if (s === 2) {
       if (!title.trim()) {
@@ -285,7 +277,7 @@ export function CreateListingPage() {
 
   if (loadingInitial) {
     return (
-      <div style={{ maxWidth: 680, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div className="skeleton" style={{ height: 56 }} />
         <div className="skeleton" style={{ height: 340 }} />
       </div>
@@ -293,207 +285,243 @@ export function CreateListingPage() {
   }
 
   return (
-    <div style={{ maxWidth: 680, margin: '0 auto' }}>
-      {/* Top Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+    <div style={{ maxWidth: 640, margin: '0 auto' }}>
+      {/* App-style Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
         <button
           type="button"
-          className="btn-ghost"
+          className="icon-circle-btn"
           onClick={() => (step > 0 ? setStep((s) => (s - 1) as WizardStep) : navigate(-1))}
+          aria-label="Back"
         >
           <ArrowLeft size={18} />
-          <span>{step > 0 ? 'Previous step' : 'Back'}</span>
         </button>
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--muted)' }}>
-          Step {step + 1} of 4
-        </span>
+        <h1 style={{ fontSize: 26, fontWeight: 800 }}>
+          {isEdit ? 'Edit your room.' : STEPS[step].title}
+        </h1>
       </div>
 
-      {/* Stepper Tabs */}
+      {/* Pill-segmented Stepper (matching app's Photos | Location | Details | Review bar) */}
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 8,
-          marginBottom: 18,
+          gap: 4,
+          padding: 4,
+          borderRadius: 999,
+          background: 'var(--surface-alt)',
+          border: '1px solid var(--border)',
+          marginBottom: 20,
         }}
       >
         {STEPS.map((s, idx) => {
           const active = idx === step;
-          const done = idx < step;
+          const reachable = idx <= step;
           return (
             <button
               key={s.label}
               type="button"
               onClick={() => {
-                if (idx <= step) setStep(idx as WizardStep);
+                if (reachable) setStep(idx as WizardStep);
               }}
               style={{
                 border: 'none',
-                background: 'transparent',
-                padding: 0,
-                textAlign: 'left',
-                cursor: idx <= step ? 'pointer' : 'default',
+                borderRadius: 999,
+                padding: '9px 6px',
+                fontSize: 13,
+                fontWeight: active ? 700 : 600,
+                background: active ? 'var(--coral)' : 'transparent',
+                color: active ? '#fff' : reachable ? 'var(--text)' : 'var(--muted)',
+                cursor: reachable ? 'pointer' : 'default',
+                transition: 'background 0.15s ease, color 0.15s ease',
               }}
             >
-              <div
-                style={{
-                  height: 5,
-                  borderRadius: 999,
-                  background: active || done ? 'var(--coral)' : 'var(--border)',
-                  marginBottom: 6,
-                  transition: 'background 0.2s ease',
-                }}
-              />
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: active ? 700 : 500,
-                  color: active ? 'var(--coral)' : done ? 'var(--text)' : 'var(--muted)',
-                }}
-              >
-                {idx + 1}. {s.label}
-              </span>
+              {s.label}
             </button>
           );
         })}
       </div>
 
-      <div className="card" style={{ padding: '26px 24px' }}>
-        <h1 style={{ fontSize: 24, marginBottom: 4 }}>
-          {isEdit ? `Edit room · ${STEPS[step].title}` : STEPS[step].title}
-        </h1>
-        <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--muted)' }}>
-          {step === 0 && 'Upload up to 10 photos. The first photo is your cover.'}
-          {step === 1 && 'Help flatmates find your room by distance.'}
-          {step === 2 && 'Share rent, room setup, preferences, and house rules.'}
-          {step === 3 && 'Double-check everything before going live.'}
-        </p>
-
-        {/* STEP 1: PHOTOS */}
+      {/* Step Content */}
+      <div className="card" style={{ padding: '24px 22px' }}>
         {step === 0 && (
-          <div>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
-                gap: 12,
-              }}
-            >
-              {photoUrls.map((url, idx) => (
-                <div
-                  key={`${url}-${idx}`}
-                  style={{
-                    position: 'relative',
-                    aspectRatio: '1/1',
-                    borderRadius: 16,
-                    overflow: 'hidden',
-                    border: idx === 0 ? '2.5px solid var(--coral)' : '1px solid var(--border)',
-                  }}
-                >
-                  <img
-                    src={url}
-                    alt={`Room ${idx + 1}`}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                  {idx === 0 && (
-                    <span
-                      className="chip active"
-                      style={{
-                        position: 'absolute',
-                        top: 8,
-                        left: 8,
-                        fontSize: 10,
-                        padding: '3px 8px',
-                      }}
-                    >
-                      Cover
-                    </span>
-                  )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--muted)' }}>
+              Real corners. Natural light. A sense of what it feels like to live here.
+            </p>
+
+            {photoUrls.length === 0 ? (
+              <label
+                style={{
+                  borderRadius: 20,
+                  border: '1.5px dashed var(--coral)',
+                  background: 'var(--input-fill)',
+                  padding: '44px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                }}
+              >
+                <Plus size={28} color="var(--coral)" />
+                <strong style={{ fontSize: 16, color: 'var(--coral)' }}>
+                  {uploading ? 'Uploading photos...' : 'Add photos'}
+                </strong>
+                <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+                  Choose from your device (up to 10)
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  hidden
+                  disabled={uploading}
+                  onChange={handlePhotoUpload}
+                />
+              </label>
+            ) : (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                  gap: 12,
+                }}
+              >
+                {photoUrls.map((url, idx) => (
                   <div
+                    key={`${url}-${idx}`}
                     style={{
-                      position: 'absolute',
-                      bottom: 6,
-                      right: 6,
-                      display: 'flex',
-                      gap: 4,
+                      position: 'relative',
+                      aspectRatio: '1/1',
+                      borderRadius: 16,
+                      overflow: 'hidden',
+                      border: idx === 0 ? '2.5px solid var(--coral)' : '1px solid var(--border)',
                     }}
                   >
-                    {idx !== 0 && (
+                    <img
+                      src={url}
+                      alt={`Room ${idx + 1}`}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                    {idx === 0 && (
+                      <span
+                        className="chip active"
+                        style={{
+                          position: 'absolute',
+                          top: 8,
+                          left: 8,
+                          fontSize: 10,
+                          padding: '3px 8px',
+                        }}
+                      >
+                        Cover
+                      </span>
+                    )}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: 6,
+                        right: 6,
+                        display: 'flex',
+                        gap: 4,
+                      }}
+                    >
+                      {idx !== 0 && (
+                        <button
+                          type="button"
+                          onClick={() => makeCover(idx)}
+                          title="Make cover"
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            border: 'none',
+                            background: 'rgba(43,27,61,0.8)',
+                            color: '#fff',
+                            display: 'grid',
+                            placeItems: 'center',
+                          }}
+                        >
+                          <Star size={13} />
+                        </button>
+                      )}
                       <button
                         type="button"
-                        onClick={() => makeCover(idx)}
-                        title="Make cover"
+                        onClick={() => removePhoto(idx)}
+                        title="Remove"
                         style={{
                           width: 28,
                           height: 28,
                           borderRadius: '50%',
                           border: 'none',
-                          background: 'rgba(43,27,61,0.78)',
+                          background: 'rgba(185,28,28,0.88)',
                           color: '#fff',
                           display: 'grid',
                           placeItems: 'center',
                         }}
                       >
-                        <Star size={13} />
+                        <Trash2 size={13} />
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => removePhoto(idx)}
-                      title="Remove"
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: '50%',
-                        border: 'none',
-                        background: 'rgba(185,28,28,0.88)',
-                        color: '#fff',
-                        display: 'grid',
-                        placeItems: 'center',
-                      }}
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
 
-              {photoUrls.length < 10 && (
-                <label
-                  style={{
-                    aspectRatio: '1/1',
-                    borderRadius: 16,
-                    border: '2px dashed var(--border)',
-                    background: 'var(--input-fill)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    cursor: 'pointer',
-                    color: 'var(--muted)',
-                    fontSize: 13,
-                    fontWeight: 600,
-                  }}
-                >
-                  <Camera size={24} color="var(--coral)" />
-                  <span>{uploading ? 'Uploading...' : 'Add photos'}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    hidden
-                    disabled={uploading}
-                    onChange={handlePhotoUpload}
-                  />
-                </label>
-              )}
+                {photoUrls.length < 10 && (
+                  <label
+                    style={{
+                      aspectRatio: '1/1',
+                      borderRadius: 16,
+                      border: '1.5px dashed var(--coral)',
+                      background: 'var(--input-fill)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      cursor: 'pointer',
+                      color: 'var(--coral)',
+                      fontSize: 13,
+                      fontWeight: 600,
+                    }}
+                  >
+                    <Plus size={24} />
+                    <span>{uploading ? 'Uploading...' : 'Add more'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      hidden
+                      disabled={uploading}
+                      onChange={handlePhotoUpload}
+                    />
+                  </label>
+                )}
+              </div>
+            )}
+
+            {/* Warm Tip Banner (from post.jpg) */}
+            <div
+              style={{
+                background: 'var(--toast)',
+                color: '#2B1B3D',
+                padding: '13px 16px',
+                borderRadius: 14,
+                fontSize: 13,
+                lineHeight: 1.5,
+              }}
+            >
+              A small tip: show the bedroom, shared spaces and your favorite little corner. No filters needed.
+            </div>
+
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+              {photoUrls.length} of 10 photos · JPG or PNG.
             </div>
           </div>
         )}
 
-        {/* STEP 2: LOCATION */}
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <button
@@ -520,7 +548,7 @@ export function CreateListingPage() {
                 </label>
                 <input
                   className="input-well"
-                  placeholder="e.g. HSR Layout"
+                  placeholder="e.g. Indiranagar"
                   value={localityName}
                   onChange={(e) => setLocalityName(e.target.value)}
                 />
@@ -556,7 +584,7 @@ export function CreateListingPage() {
                 </label>
                 <input
                   className="input-well"
-                  placeholder="e.g. 560102"
+                  placeholder="e.g. 560038"
                   value={postalCode}
                   onChange={(e) => setPostalCode(e.target.value)}
                 />
@@ -565,7 +593,6 @@ export function CreateListingPage() {
           </div>
         )}
 
-        {/* STEP 3: DETAILS */}
         {step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
@@ -574,7 +601,7 @@ export function CreateListingPage() {
               </label>
               <input
                 className="input-well"
-                placeholder="e.g. Sunlit private room with balcony near Metro"
+                placeholder="e.g. Sunny room with balcony near Metro"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
@@ -588,7 +615,7 @@ export function CreateListingPage() {
                 <input
                   className="input-well"
                   type="number"
-                  placeholder="12000"
+                  placeholder="14000"
                   value={rentAmount}
                   onChange={(e) => setRentAmount(e.target.value)}
                 />
@@ -600,7 +627,7 @@ export function CreateListingPage() {
                 <input
                   className="input-well"
                   type="number"
-                  placeholder="24000"
+                  placeholder="28000"
                   value={depositAmount}
                   onChange={(e) => setDepositAmount(e.target.value)}
                 />
@@ -767,10 +794,9 @@ export function CreateListingPage() {
           </div>
         )}
 
-        {/* STEP 4: REVIEW */}
         {step === 3 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid var(--border)' }}>
+            <div style={{ borderRadius: 18, overflow: 'hidden', border: '1px solid var(--border)' }}>
               {photoUrls[0] && (
                 <img
                   src={photoUrls[0]}
@@ -829,24 +855,17 @@ export function CreateListingPage() {
           </div>
         )}
 
-        {/* Footer Actions */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 24 }}>
-          {step > 0 ? (
+        {/* Full-width app-style CTA */}
+        <div style={{ marginTop: 22 }}>
+          {step < 3 ? (
             <button
               type="button"
-              className="btn-secondary"
-              onClick={() => setStep((s) => (s - 1) as WizardStep)}
+              className="btn-primary"
+              onClick={goNext}
+              style={{ width: '100%', padding: '14px 20px' }}
             >
-              Back
-            </button>
-          ) : (
-            <div />
-          )}
-
-          {step < 3 ? (
-            <button type="button" className="btn-primary" onClick={goNext}>
-              <span>Next</span>
-              <ArrowRight size={16} />
+              <span>Next · {STEPS[step + 1].label}</span>
+              <ArrowRight size={17} />
             </button>
           ) : (
             <button
@@ -854,11 +873,12 @@ export function CreateListingPage() {
               className="btn-primary"
               onClick={handlePublish}
               disabled={submitting}
+              style={{ width: '100%', padding: '14px 20px' }}
             >
-              <Check size={16} />
+              <Check size={17} />
               <span>
                 {submitting
-                  ? 'Saving...'
+                  ? 'Publishing...'
                   : isEdit
                   ? 'Save changes'
                   : 'Publish room'}

@@ -4,7 +4,7 @@ import {
   Compass,
   User,
   Settings,
-  PlusCircle,
+  Plus,
   Sun,
   Moon,
 } from 'lucide-react';
@@ -21,71 +21,60 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-shell">
-      {/* Desktop Sidebar */}
-      <aside className="app-sidebar">
-        <Link
-          to="/"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '6px 10px 18px',
-          }}
-        >
-          <img src="/assets/img/logo.svg" alt="MateEazy" width={36} height={36} />
-          <span
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontWeight: 800,
-              fontSize: 20,
-            }}
-          >
-            MateEazy
-          </span>
-        </Link>
-
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  `sidebar-item ${isActive ? 'active' : ''}`
-                }
-              >
-                <Icon size={20} />
-                <span>{item.label}</span>
-              </NavLink>
-            );
-          })}
-
-          <Link
-            to="/listings/new"
-            className="btn-primary"
-            style={{ marginTop: 14, width: '100%' }}
-          >
-            <PlusCircle size={18} />
-            <span>Post a room</span>
+      {/* Consumer Top Header (Desktop & Mobile) */}
+      <header className="app-topbar">
+        <div className="app-topbar-inner">
+          <Link to="/home" className="app-brand">
+            <img src="/assets/img/logo.svg" alt="MateEazy" width={34} height={34} />
+            <span>
+              Mate<span style={{ color: 'var(--coral)' }}>Eazy</span>
+            </span>
           </Link>
-        </nav>
 
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="sidebar-item"
-          style={{ border: 'none', background: 'transparent', width: '100%' }}
-        >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
-        </button>
-      </aside>
+          <nav className="app-desktop-nav" aria-label="Primary">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `topnav-pill ${isActive ? 'active' : ''}`
+                  }
+                >
+                  <Icon size={16} />
+                  <span>{item.label}</span>
+                </NavLink>
+              );
+            })}
+          </nav>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="icon-circle-btn"
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            >
+              {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
+            <Link
+              to="/listings/new"
+              className="btn-primary"
+              style={{ padding: '9px 16px', fontSize: 13 }}
+            >
+              <Plus size={16} />
+              <span>List room</span>
+            </Link>
+          </div>
+        </div>
+      </header>
 
       {/* Main Content */}
       <main className="app-main">{children}</main>
 
-      {/* Mobile Bottom Navigation */}
+      {/* Floating Pill Bottom Navigation (Mobile) */}
       <nav className="app-bottom-nav" aria-label="Primary">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -97,7 +86,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 `bottom-nav-item ${isActive ? 'active' : ''}`
               }
             >
-              <Icon size={21} />
+              <Icon size={20} />
               <span>{item.label}</span>
             </NavLink>
           );

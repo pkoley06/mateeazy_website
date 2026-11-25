@@ -30,7 +30,7 @@ export function EditProfilePage() {
     if (!file) return;
     setUploading(true);
     try {
-      const url = await uploadApi.uploadImage(file, 'avatars');
+      const url = await uploadApi.uploadProfilePhoto(file);
       if (url) setAvatarUrl(url);
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Upload failed', 'error');

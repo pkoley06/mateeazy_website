@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   Heart,
   Share2,
-  MapPin,
   Check,
   ShieldAlert,
 } from 'lucide-react';
@@ -166,69 +165,73 @@ export function RoomDetailPage() {
         alt={listing.title || 'Room photo'}
       />
 
-      {/* Main Details Card */}
-      <div className="card" style={{ padding: 22, marginTop: 16 }}>
+      {/* Main Details Card (matching room.jpg) */}
+      <div className="card" style={{ padding: 24, marginTop: 16 }}>
+        {passedCard?.matchPercentage != null && (
+          <div style={{ marginBottom: 12 }}>
+            <span className="chip gold" style={{ fontSize: 13, fontWeight: 700, padding: '7px 14px' }}>
+              ✨ {Math.round(passedCard.matchPercentage)}% match · feels like a fit
+            </span>
+          </div>
+        )}
+
+        <h1 style={{ fontSize: 'clamp(24px, 4vw, 32px)', fontWeight: 800, marginBottom: 6 }}>
+          {listing.title ||
+            `${listing.roomType === 'PRIVATE' ? 'Private' : 'Shared'} room in ${listing.localityName}`}
+        </h1>
+
+        <p style={{ margin: '0 0 18px', fontSize: 14, color: 'var(--muted)' }}>
+          {listing.roomType === 'PRIVATE' ? 'Private room in a shared home' : 'Shared room'}
+          {listing.kitchenType ? ` · ${listing.kitchenType === 'PRIVATE' ? 'Private' : 'Shared'} kitchen` : ''}
+          {listing.washroomType ? ` · ${listing.washroomType === 'PRIVATE' ? 'Private' : 'Shared'} washroom` : ''}
+          {` · ${listing.localityName}, ${listing.city}`}
+        </p>
+
+        {/* Side-by-side Rent & Availability Tiles (matching room.jpg) */}
         <div
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
             gap: 12,
-            alignItems: 'flex-start',
+            marginBottom: 18,
           }}
         >
-          <div>
-            <h1 style={{ fontSize: 26, marginBottom: 6 }}>
-              {listing.title ||
-                `${listing.roomType === 'PRIVATE' ? 'Private' : 'Shared'} room in ${listing.localityName}`}
-            </h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--muted)', fontSize: 14 }}>
-              <MapPin size={15} />
-              <span>
-                {listing.localityName}, {listing.city}
-              </span>
-            </div>
-          </div>
-
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--coral)' }}>
+          <div
+            style={{
+              background: 'var(--input-fill)',
+              border: '1px solid var(--border)',
+              borderRadius: 18,
+              padding: '16px 18px',
+            }}
+          >
+            <div style={{ fontSize: 24, fontWeight: 800 }}>
               ₹{listing.rentAmount.toLocaleString('en-IN')}
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--muted)' }}>/mo</span>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-              Deposit: ₹{listing.depositAmount.toLocaleString('en-IN')}
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>
+              per month · ₹{listing.depositAmount.toLocaleString('en-IN')} deposit
             </div>
           </div>
-        </div>
 
-        {/* Tags */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
-          <span className="chip">
-            {listing.roomType === 'PRIVATE' ? 'Private room' : 'Shared room'}
-          </span>
-          <span className="chip">
-            {listing.furnishingStatus.replace('_', ' ')}
-          </span>
-          {listing.kitchenType && (
-            <span className="chip">
-              {listing.kitchenType === 'PRIVATE' ? 'Private kitchen' : 'Shared kitchen'}
-            </span>
-          )}
-          {listing.washroomType && (
-            <span className="chip">
-              {listing.washroomType === 'PRIVATE' ? 'Private washroom' : 'Shared washroom'}
-            </span>
-          )}
-          <span className="chip coral">
-            {listing.genderPreference === 'ALL'
-              ? 'Open to all genders'
-              : `${listing.genderPreference} only`}
-          </span>
-          {passedCard?.matchPercentage != null && (
-            <span className="chip gold">
-              {Math.round(passedCard.matchPercentage)}% lifestyle match
-            </span>
-          )}
+          <div
+            style={{
+              background: 'var(--toast)',
+              color: '#2B1B3D',
+              borderRadius: 18,
+              padding: '16px 18px',
+            }}
+          >
+            <div style={{ fontSize: 18, fontWeight: 700 }}>
+              {listing.moveInDate
+                ? `Available ${new Date(listing.moveInDate).toLocaleDateString()}`
+                : 'Available now'}
+            </div>
+            <div style={{ fontSize: 13, opacity: 0.78, marginTop: 2 }}>
+              {listing.furnishingStatus.replace('_', ' ')} ·{' '}
+              {listing.genderPreference === 'ALL'
+                ? 'Open to all genders'
+                : `${listing.genderPreference} only`}
+            </div>
+          </div>
         </div>
 
         {listing.description && (

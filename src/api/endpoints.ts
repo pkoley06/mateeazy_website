@@ -265,13 +265,24 @@ export const notificationsApi = {
 };
 
 export const uploadApi = {
-  uploadImage: async (file: File, folder = 'listings'): Promise<string> => {
+  uploadProfilePhoto: async (file: File): Promise<string> => {
     const form = new FormData();
-    form.append('file', file);
-    const res = await apiRequest<{ url?: string; fileUrl?: string }>(
-      `/api/v1/uploads/${folder}`,
+    form.append('file', file, file.name || 'avatar.jpg');
+    const res = await apiRequest<{ url?: string }>(
+      '/api/v1/uploads/profile-photo',
       { method: 'POST', body: form }
     );
-    return res.url || res.fileUrl || '';
+    return res.url || '';
+  },
+  uploadListingPhotos: async (files: File[]): Promise<string[]> => {
+    const form = new FormData();
+    files.forEach((file, idx) => {
+      form.append('files', file, file.name || `photo_${idx}.jpg`);
+    });
+    const res = await apiRequest<{ urls?: string[] }>(
+      '/api/v1/uploads/listing-photos',
+      { method: 'POST', body: form }
+    );
+    return res.urls || [];
   },
 };

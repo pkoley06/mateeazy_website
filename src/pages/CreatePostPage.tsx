@@ -22,8 +22,8 @@ export function CreatePostPage() {
     if (!file) return;
     setUploading(true);
     try {
-      const url = await uploadApi.uploadImage(file, 'community');
-      if (url) setImageUrls((prev) => [...prev, url]);
+      const urls = await uploadApi.uploadListingPhotos([file]);
+      if (urls[0]) setImageUrls((prev) => [...prev, urls[0]]);
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Upload failed', 'error');
     } finally {

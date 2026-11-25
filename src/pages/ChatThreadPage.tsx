@@ -98,8 +98,8 @@ export function ChatThreadPage() {
     if (!file || !conversationId) return;
     setSending(true);
     try {
-      const url = await uploadApi.uploadImage(file, 'chat-images');
-      const msg = await chatApi.sendMessage(conversationId, '', 'IMAGE', [url]);
+      const urls = await uploadApi.uploadListingPhotos([file]);
+      const msg = await chatApi.sendMessage(conversationId, '', 'IMAGE', urls);
       setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Photo send failed', 'error');

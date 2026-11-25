@@ -14,7 +14,9 @@ import {
 import { discoveryApi, listingApi, userApi, type DiscoveryParams } from '../api/endpoints';
 import type { DiscoveryCard } from '../types/api';
 import { useAuth } from '../context/AuthContext';
+import { useBranding } from '../context/BrandingContext';
 import { useToast } from '../context/ToastContext';
+import { forwardGeocode } from '../utils/googleMaps';
 import { FilterModal } from '../components/FilterModal';
 import { RoomFinderModal } from '../components/RoomFinderModal';
 
@@ -42,6 +44,7 @@ function getInitialLocation(): { lat: number; lng: number; label: string; hasSav
 
 export function DiscoverPage() {
   const { profile } = useAuth();
+  const { mapsApiKey } = useBranding();
   const { showToast } = useToast();
   const navigate = useNavigate();
 
@@ -141,24 +144,13 @@ export function DiscoverPage() {
     if (!q || searchingLoc) return;
     setSearchingLoc(true);
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q=${encodeURIComponent(q)}`
-      );
-      if (res.ok) {
-        const list = (await res.json()) as Array<{
-          lat: string;
-          lon: string;
-          display_name: string;
-        }>;
-        if (list.length > 0) {
-          const hit = list[0];
-          const shortName = hit.display_name.split(',').slice(0, 2).join(', ');
-          saveLocation(parseFloat(hit.lat), parseFloat(hit.lon), shortName);
-          setSearchQuery('');
-          showToast(`Showing matches near ${shortName}`, 'success');
-        } else {
-          showToast('Location not found. Try a broader city or area.', 'error');
-        }
+      const hit = await forwardGeocode(q, mapsApiKey);
+      if (hit) {
+        saveLocation(hit.lat, hit.lng, hit.label);
+        setSearchQuery('');
+        showToast(`Showing matches near ${hit.label}`, 'success');
+      } else {
+        showToast('Location not found. Try a broader city or area.', 'error');
       }
     } catch {
       showToast('Could not search location', 'error');

@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { LocateFixed, Search, Sparkles, X } from 'lucide-react';
 import { userApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
+import { useBranding } from '../context/BrandingContext';
 import { useToast } from '../context/ToastContext';
+import { forwardGeocode, reverseGeocode } from '../utils/googleMaps';
 import type { GenderPreference, RoomFinderGoal } from '../types/api';
 import { MapPreview } from './MapPreview';
 
@@ -13,6 +15,7 @@ interface RoomFinderModalProps {
 
 export function RoomFinderModal({ onClose, onSaved }: RoomFinderModalProps) {
   const { profile, refreshProfile } = useAuth();
+  const { mapsApiKey } = useBranding();
   const { showToast } = useToast();
 
   const [isRoomSeeker, setIsRoomSeeker] = useState(profile?.isRoomSeeker ?? false);
@@ -45,27 +48,14 @@ export function RoomFinderModal({ onClose, onSaved }: RoomFinderModalProps) {
     e.preventDefault();
     const q = areaQuery.trim();
     if (!q) return;
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q=${encodeURIComponent(q)}`
-      );
-      if (res.ok) {
-        const list = (await res.json()) as Array<{
-          lat: string;
-          lon: string;
-          display_name: string;
-        }>;
-        if (list.length > 0) {
-          setLat(parseFloat(list[0].lat));
-          setLng(parseFloat(list[0].lon));
-          setLocality(list[0].display_name.split(',').slice(0, 2).join(', '));
-          setAreaQuery('');
-        } else {
-          showToast('Area not found', 'error');
-        }
-      }
-    } catch {
-      showToast('Could not search area', 'error');
+    const hit = await forwardGeocode(q, mapsApiKey);
+    if (hit) {
+      setLat(hit.lat);
+      setLng(hit.lng);
+      setLocality(hit.label);
+      setAreaQuery('');
+    } else {
+      showToast('Area not found', 'error');
     }
   };
 
@@ -76,25 +66,8 @@ export function RoomFinderModal({ onClose, onSaved }: RoomFinderModalProps) {
         const nextLng = pos.coords.longitude;
         setLat(nextLat);
         setLng(nextLng);
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${nextLat}&lon=${nextLng}`
-          );
-          if (res.ok) {
-            const d = (await res.json()) as {
-              address?: { suburb?: string; neighbourhood?: string; city?: string };
-            };
-            const name = [
-              d.address?.suburb || d.address?.neighbourhood,
-              d.address?.city,
-            ]
-              .filter(Boolean)
-              .join(', ');
-            if (name) setLocality(name);
-          }
-        } catch {
-          // ignore
-        }
+        const rev = await reverseGeocode(nextLat, nextLng, mapsApiKey);
+        if (rev?.label) setLocality(rev.label);
       },
       () => showToast('Location permission denied', 'error')
     );

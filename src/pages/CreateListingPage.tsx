@@ -12,7 +12,9 @@ import {
 } from 'lucide-react';
 import { listingApi, uploadApi, userApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
+import { useBranding } from '../context/BrandingContext';
 import { useToast } from '../context/ToastContext';
+import { forwardGeocode, reverseGeocode } from '../utils/googleMaps';
 import { MapPreview } from '../components/MapPreview';
 
 type WizardStep = 0 | 1 | 2 | 3;
@@ -38,6 +40,7 @@ export function CreateListingPage() {
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const { refreshProfile } = useAuth();
+  const { mapsApiKey } = useBranding();
   const { showToast } = useToast();
 
   const [step, setStep] = useState<WizardStep>(0);
@@ -136,6 +139,19 @@ export function CreateListingPage() {
     setPhotoUrls((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  const applyReverse = async (lat: number, lng: number) => {
+    setLatitude(lat);
+    setLongitude(lng);
+    setHasGps(true);
+    const rev = await reverseGeocode(lat, lng, mapsApiKey);
+    if (rev) {
+      if (rev.locality) setLocalityName(rev.locality);
+      if (rev.city) setCity(rev.city);
+      if (rev.state) setStateName(rev.state);
+      if (rev.postalCode) setPostalCode(rev.postalCode);
+    }
+  };
+
   const detectLocation = () => {
     if (!navigator.geolocation) {
       showToast('Geolocation is not supported by your browser', 'error');
@@ -144,43 +160,9 @@ export function CreateListingPage() {
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setLatitude(lat);
-        setLongitude(lng);
-        setHasGps(true);
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`
-          );
-          if (res.ok) {
-            const data = (await res.json()) as {
-              address?: {
-                suburb?: string;
-                neighbourhood?: string;
-                city_district?: string;
-                city?: string;
-                town?: string;
-                state?: string;
-                postcode?: string;
-              };
-            };
-            const a = data.address;
-            if (a) {
-              setLocalityName(
-                a.suburb || a.neighbourhood || a.city_district || ''
-              );
-              setCity(a.city || a.town || '');
-              setStateName(a.state || '');
-              setPostalCode(a.postcode || '');
-            }
-          }
-          showToast('Location detected!', 'success');
-        } catch {
-          showToast('GPS coordinates captured. Enter locality & city.', 'info');
-        } finally {
-          setLocating(false);
-        }
+        await applyReverse(pos.coords.latitude, pos.coords.longitude);
+        setLocating(false);
+        showToast('Location detected!', 'success');
       },
       () => {
         setLocating(false);
@@ -550,20 +532,15 @@ export function CreateListingPage() {
                     showToast('Enter locality or city first to pin on map', 'info');
                     return;
                   }
-                  try {
-                    const res = await fetch(
-                      `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q=${encodeURIComponent(q)}`
-                    );
-                    if (res.ok) {
-                      const list = (await res.json()) as Array<{ lat: string; lon: string }>;
-                      if (list[0]) {
-                        setLatitude(parseFloat(list[0].lat));
-                        setLongitude(parseFloat(list[0].lon));
-                        setHasGps(true);
-                        showToast('Map pin updated!', 'success');
-                      }
-                    }
-                  } catch {
+                  const hit = await forwardGeocode(q, mapsApiKey);
+                  if (hit) {
+                    setLatitude(hit.lat);
+                    setLongitude(hit.lng);
+                    setHasGps(true);
+                    if (hit.state && !stateName) setStateName(hit.state);
+                    if (hit.postalCode && !postalCode) setPostalCode(hit.postalCode);
+                    showToast('Map pin updated!', 'success');
+                  } else {
                     showToast('Could not locate area', 'error');
                   }
                 }}
@@ -578,9 +555,10 @@ export function CreateListingPage() {
               lng={longitude}
               label={
                 [localityName, city].filter(Boolean).join(', ') ||
-                'Room pin preview'
+                'Click or drag pin to set room location'
               }
-              height={180}
+              height={190}
+              onPickLocation={(lat, lng) => void applyReverse(lat, lng)}
             />
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>

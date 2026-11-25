@@ -41,7 +41,7 @@ export function MapPreview({
       if (!mapRef.current) {
         const map = new maps.Map(containerRef.current, {
           center,
-          zoom: radiusKm ? Math.max(10, 14 - Math.floor(radiusKm / 6)) : 15,
+          zoom: 14,
           disableDefaultUI: true,
           zoomControl: true,
           clickableIcons: false,
@@ -77,14 +77,18 @@ export function MapPreview({
             center,
             radius: radiusKm * 1000,
             fillColor: '#FF6B5B',
-            fillOpacity: 0.16,
+            fillOpacity: 0.18,
             strokeColor: '#FF6B5B',
-            strokeOpacity: 0.7,
+            strokeOpacity: 0.85,
             strokeWeight: 2,
           });
         } else {
           circleRef.current.setCenter(center);
           circleRef.current.setRadius(radiusKm * 1000);
+        }
+        const bounds = circleRef.current.getBounds();
+        if (bounds) {
+          mapRef.current.fitBounds(bounds, 16);
         }
       } else if (circleRef.current) {
         circleRef.current.setMap(null);

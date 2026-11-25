@@ -16,6 +16,7 @@ import { useBranding } from '../context/BrandingContext';
 import { useToast } from '../context/ToastContext';
 import { forwardGeocode, reverseGeocode } from '../utils/googleMaps';
 import { MapPreview } from '../components/MapPreview';
+import { PlaceAutocompleteInput } from '../components/PlaceAutocompleteInput';
 
 type WizardStep = 0 | 1 | 2 | 3;
 
@@ -507,6 +508,20 @@ export function CreateListingPage() {
 
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <PlaceAutocompleteInput
+              placeholder="Search locality, landmark, or area (Google Places)..."
+              onSelect={(place) => {
+                setLatitude(place.lat);
+                setLongitude(place.lng);
+                setHasGps(true);
+                if (place.locality) setLocalityName(place.locality);
+                if (place.city) setCity(place.city);
+                if (place.state) setStateName(place.state);
+                if (place.postalCode) setPostalCode(place.postalCode);
+                showToast(`Pinned ${place.label}`, 'success');
+              }}
+            />
+
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button
                 type="button"

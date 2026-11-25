@@ -5,20 +5,17 @@ import {
   MapPin,
   Heart,
   Sparkles,
-  Search,
   LocateFixed,
   Briefcase,
   ArrowRight,
-  X,
 } from 'lucide-react';
 import { discoveryApi, listingApi, userApi, type DiscoveryParams } from '../api/endpoints';
 import type { DiscoveryCard } from '../types/api';
 import { useAuth } from '../context/AuthContext';
-import { useBranding } from '../context/BrandingContext';
 import { useToast } from '../context/ToastContext';
-import { forwardGeocode } from '../utils/googleMaps';
 import { FilterModal } from '../components/FilterModal';
 import { RoomFinderModal } from '../components/RoomFinderModal';
+import { PlaceAutocompleteInput } from '../components/PlaceAutocompleteInput';
 
 const SAVED_LOC_KEY = 'mateeazy_last_location';
 
@@ -44,7 +41,6 @@ function getInitialLocation(): { lat: number; lng: number; label: string; hasSav
 
 export function DiscoverPage() {
   const { profile } = useAuth();
-  const { mapsApiKey } = useBranding();
   const { showToast } = useToast();
   const navigate = useNavigate();
 
@@ -62,8 +58,6 @@ export function DiscoverPage() {
   const [areaLabel, setAreaLabel] = useState(
     initialLoc.hasSaved ? initialLoc.label : ''
   );
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchingLoc, setSearchingLoc] = useState(false);
 
   const [filters, setFilters] = useState<DiscoveryParams>({
     radiusKm: 30,
@@ -138,27 +132,6 @@ export function DiscoverPage() {
     void loadFeed();
   }, [loadFeed]);
 
-  const handleLocationSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const q = searchQuery.trim();
-    if (!q || searchingLoc) return;
-    setSearchingLoc(true);
-    try {
-      const hit = await forwardGeocode(q, mapsApiKey);
-      if (hit) {
-        saveLocation(hit.lat, hit.lng, hit.label);
-        setSearchQuery('');
-        showToast(`Showing matches near ${hit.label}`, 'success');
-      } else {
-        showToast('Location not found. Try a broader city or area.', 'error');
-      }
-    } catch {
-      showToast('Could not search location', 'error');
-    } finally {
-      setSearchingLoc(false);
-    }
-  };
-
   const toggleLike = async (e: React.MouseEvent, card: DiscoveryCard) => {
     e.stopPropagation();
     if (!card.listingId) return;
@@ -222,8 +195,7 @@ export function DiscoverPage() {
 
       {/* Location Search Pill + Filter Icon Button */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
-        <form
-          onSubmit={handleLocationSearch}
+        <div
           style={{
             flex: 1,
             display: 'flex',
@@ -232,62 +204,34 @@ export function DiscoverPage() {
             background: 'var(--card)',
             border: '1.5px solid var(--border)',
             borderRadius: 999,
-            padding: '8px 14px',
+            padding: '4px 12px 4px 14px',
             boxShadow: 'var(--shadow-sm)',
           }}
         >
           <MapPin size={18} color="var(--coral)" style={{ flexShrink: 0 }} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={areaLabel ? `${areaLabel} · type city or area to switch` : 'Search city or area (e.g. Indiranagar, Bengaluru)'}
-            style={{
-              flex: 1,
-              border: 'none',
-              background: 'transparent',
-              color: 'var(--text)',
-              fontSize: 14,
-              outline: 'none',
+          <PlaceAutocompleteInput
+            placeholder={areaLabel ? `${areaLabel} · search city or area` : 'Search city or area (e.g. Indiranagar, Bengaluru)'}
+            className="input-well"
+            onSelect={(place) => {
+              saveLocation(place.lat, place.lng, place.label);
+              showToast(`Showing matches near ${place.label}`, 'success');
             }}
           />
-          {searchQuery ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="btn-ghost"
-                style={{ padding: 4 }}
-                aria-label="Clear"
-              >
-                <X size={16} />
-              </button>
-              <button
-                type="submit"
-                className="btn-primary"
-                style={{ padding: '6px 12px', fontSize: 12 }}
-                disabled={searchingLoc}
-              >
-                <Search size={14} />
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                navigator.geolocation?.getCurrentPosition((pos) => {
-                  saveLocation(pos.coords.latitude, pos.coords.longitude, 'Near you');
-                  showToast('Location updated', 'success');
-                });
-              }}
-              className="btn-ghost"
-              style={{ padding: 4 }}
-              title="Use current GPS"
-            >
-              <LocateFixed size={16} color="var(--muted)" />
-            </button>
-          )}
-        </form>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.geolocation?.getCurrentPosition((pos) => {
+                saveLocation(pos.coords.latitude, pos.coords.longitude, 'Near you');
+                showToast('Location updated', 'success');
+              });
+            }}
+            className="btn-ghost"
+            style={{ padding: 6 }}
+            title="Use current GPS"
+          >
+            <LocateFixed size={16} color="var(--muted)" />
+          </button>
+        </div>
 
         <button
           type="button"

@@ -6,6 +6,7 @@ declare namespace google {
       lat(): number;
       lng(): number;
     }
+    interface LatLngBounds {}
     interface MapMouseEvent {
       latLng?: LatLng | null;
     }
@@ -29,6 +30,7 @@ declare namespace google {
     class Map {
       constructor(el: HTMLElement, opts: Record<string, unknown>);
       setCenter(center: { lat: number; lng: number }): void;
+      fitBounds(bounds: LatLngBounds, padding?: number): void;
       addListener(event: string, fn: (e: MapMouseEvent) => void): void;
     }
     class Marker {
@@ -41,7 +43,31 @@ declare namespace google {
       constructor(opts: Record<string, unknown>);
       setCenter(center: { lat: number; lng: number }): void;
       setRadius(radiusMeters: number): void;
+      getBounds(): LatLngBounds | null;
       setMap(map: Map | null): void;
+    }
+    namespace places {
+      interface AutocompletePrediction {
+        place_id: string;
+        description: string;
+        structured_formatting?: {
+          main_text: string;
+          secondary_text?: string;
+        };
+      }
+      class AutocompleteService {
+        getPlacePredictions(
+          req: { input: string; componentRestrictions?: { country: string } },
+          cb: (results: AutocompletePrediction[] | null, status: string) => void
+        ): void;
+      }
+      class PlacesService {
+        constructor(attrContainer: HTMLDivElement | Map);
+        getDetails(
+          req: { placeId: string; fields: string[] },
+          cb: (result: GeocoderResult | null, status: string) => void
+        ): void;
+      }
     }
   }
 }

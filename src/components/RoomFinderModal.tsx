@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { LocateFixed, Search, Sparkles, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { LocateFixed, Sparkles, X } from 'lucide-react';
 import { userApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { useBranding } from '../context/BrandingContext';
 import { useToast } from '../context/ToastContext';
-import { forwardGeocode, reverseGeocode } from '../utils/googleMaps';
+import { reverseGeocode } from '../utils/googleMaps';
 import type { GenderPreference, RoomFinderGoal } from '../types/api';
 import { MapPreview } from './MapPreview';
+import { PlaceAutocompleteInput } from './PlaceAutocompleteInput';
 
 interface RoomFinderModalProps {
   onClose: () => void;
@@ -27,7 +28,6 @@ export function RoomFinderModal({ onClose, onSaved }: RoomFinderModalProps) {
   const [lat, setLat] = useState(22.5726);
   const [lng, setLng] = useState(88.3639);
   const [locality, setLocality] = useState('');
-  const [areaQuery, setAreaQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -43,21 +43,6 @@ export function RoomFinderModal({ onClose, onSaved }: RoomFinderModalProps) {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
-
-  const searchArea = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const q = areaQuery.trim();
-    if (!q) return;
-    const hit = await forwardGeocode(q, mapsApiKey);
-    if (hit) {
-      setLat(hit.lat);
-      setLng(hit.lng);
-      setLocality(hit.label);
-      setAreaQuery('');
-    } else {
-      showToast('Area not found', 'error');
-    }
-  };
 
   const useGps = () => {
     navigator.geolocation?.getCurrentPosition(
@@ -232,16 +217,15 @@ export function RoomFinderModal({ onClose, onSaved }: RoomFinderModalProps) {
                 Target area &amp; alert radius ({Math.round(radiusKm)} km)
               </label>
 
-              <form onSubmit={searchArea} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                <input
-                  className="input-well"
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <PlaceAutocompleteInput
                   placeholder={locality || 'Search locality (e.g. Koramangala)'}
-                  value={areaQuery}
-                  onChange={(e) => setAreaQuery(e.target.value)}
+                  onSelect={(place) => {
+                    setLat(place.lat);
+                    setLng(place.lng);
+                    setLocality(place.label);
+                  }}
                 />
-                <button type="submit" className="btn-secondary" style={{ padding: '0 14px' }}>
-                  <Search size={16} />
-                </button>
                 <button
                   type="button"
                   className="btn-secondary"
@@ -251,7 +235,7 @@ export function RoomFinderModal({ onClose, onSaved }: RoomFinderModalProps) {
                 >
                   <LocateFixed size={16} color="var(--coral)" />
                 </button>
-              </form>
+              </div>
 
               <MapPreview
                 lat={lat}

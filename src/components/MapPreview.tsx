@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { ExternalLink, MapPin } from 'lucide-react';
 import { useBranding } from '../context/BrandingContext';
-import { loadGoogleMaps } from '../utils/googleMaps';
+import {
+  isGoogleMapsAuthFailed,
+  loadGoogleMaps,
+  onGoogleMapsAuthFailed,
+} from '../utils/googleMaps';
 
 interface MapPreviewProps {
   lat: number;
@@ -25,74 +29,86 @@ export function MapPreview({
   const mapRef = useRef<google.maps.Map | null>(null);
   const markerRef = useRef<google.maps.Marker | null>(null);
   const circleRef = useRef<google.maps.Circle | null>(null);
-  const [useFallbackEmbed, setUseFallbackEmbed] = useState(false);
+  const [useFallbackEmbed, setUseFallbackEmbed] = useState(
+    isGoogleMapsAuthFailed()
+  );
+
+  useEffect(() => {
+    return onGoogleMapsAuthFailed(() => {
+      setUseFallbackEmbed(true);
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     loadGoogleMaps(googleMapsApiKey).then((maps) => {
       if (cancelled) return;
-      if (!maps || !containerRef.current) {
+      if (!maps || isGoogleMapsAuthFailed() || !containerRef.current) {
         setUseFallbackEmbed(true);
         return;
       }
       setUseFallbackEmbed(false);
 
       const center = { lat, lng };
-      if (!mapRef.current) {
-        const map = new maps.Map(containerRef.current, {
-          center,
-          zoom: 14,
-          disableDefaultUI: true,
-          zoomControl: true,
-          clickableIcons: false,
-        });
-        const marker = new maps.Marker({
-          position: center,
-          map,
-          draggable: Boolean(onPickLocation),
-        });
-
-        if (onPickLocation) {
-          map.addListener('click', (e: google.maps.MapMouseEvent) => {
-            if (!e.latLng) return;
-            onPickLocation(e.latLng.lat(), e.latLng.lng());
-          });
-          marker.addListener('dragend', () => {
-            const p = marker.getPosition();
-            if (p) onPickLocation(p.lat(), p.lng());
-          });
-        }
-
-        mapRef.current = map;
-        markerRef.current = marker;
-      } else {
-        mapRef.current.setCenter(center);
-        markerRef.current?.setPosition(center);
-      }
-
-      if (radiusKm && mapRef.current) {
-        if (!circleRef.current) {
-          circleRef.current = new maps.Circle({
-            map: mapRef.current,
+      try {
+        if (!mapRef.current) {
+          const map = new maps.Map(containerRef.current, {
             center,
-            radius: radiusKm * 1000,
-            fillColor: '#FF6B5B',
-            fillOpacity: 0.18,
-            strokeColor: '#FF6B5B',
-            strokeOpacity: 0.85,
-            strokeWeight: 2,
+            zoom: 14,
+            disableDefaultUI: true,
+            zoomControl: true,
+            clickableIcons: false,
           });
+          const marker = new maps.Marker({
+            position: center,
+            map,
+            draggable: Boolean(onPickLocation),
+          });
+
+          if (onPickLocation) {
+            map.addListener('click', (e: google.maps.MapMouseEvent) => {
+              if (!e.latLng) return;
+              onPickLocation(e.latLng.lat(), e.latLng.lng());
+            });
+            marker.addListener('dragend', () => {
+              const p = marker.getPosition();
+              if (p) onPickLocation(p.lat(), p.lng());
+            });
+          }
+
+          mapRef.current = map;
+          markerRef.current = marker;
         } else {
-          circleRef.current.setCenter(center);
-          circleRef.current.setRadius(radiusKm * 1000);
+          mapRef.current.setCenter(center);
+          markerRef.current?.setPosition(center);
         }
-        const bounds = circleRef.current.getBounds();
-        if (bounds) {
-          mapRef.current.fitBounds(bounds, 16);
+
+        if (radiusKm && mapRef.current) {
+          if (!circleRef.current) {
+            circleRef.current = new maps.Circle({
+              map: mapRef.current,
+              center,
+              radius: radiusKm * 1000,
+              fillColor: '#FF6B5B',
+              fillOpacity: 0.18,
+              strokeColor: '#FF6B5B',
+              strokeOpacity: 0.85,
+              strokeWeight: 2,
+            });
+          } else {
+            circleRef.current.setCenter(center);
+            circleRef.current.setRadius(radiusKm * 1000);
+          }
+          const bounds = circleRef.current.getBounds();
+          if (bounds) {
+            mapRef.current.fitBounds(bounds, 16);
+          }
+        } else if (circleRef.current) {
+          circleRef.current.setMap(null);
+          circleRef.current = null;
         }
-      } else if (circleRef.current) {
-        circleRef.current.setMap(null);
-        circleRef.current = null;
+      } catch {
+        setUseFallbackEmbed(true);
       }
     });
 
@@ -102,7 +118,8 @@ export function MapPreview({
   }, [lat, lng, radiusKm, googleMapsApiKey, onPickLocation]);
 
   const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-  const gmapsEmbedUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
+  const zoom = radiusKm ? Math.max(10, 14 - Math.floor(radiusKm / 6)) : 15;
+  const gmapsEmbedUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=${zoom}&output=embed`;
 
   return (
     <div

@@ -3,6 +3,7 @@ import { MapPin, X } from 'lucide-react';
 import { useBranding } from '../context/BrandingContext';
 import {
   forwardGeocode,
+  isGoogleMapsAuthFailed,
   loadGoogleMaps,
   type GeocodedPlace,
 } from '../utils/googleMaps';
@@ -115,25 +116,36 @@ export function PlaceAutocompleteInput({
     }
 
     const timer = setTimeout(() => {
-      if (serviceRef.current) {
-        serviceRef.current.getPlacePredictions(
-          { input: trimmed, componentRestrictions: { country: 'in' } },
-          (preds, status) => {
-            if (status === 'OK' && preds && preds.length > 0) {
-              setSuggestions(
-                preds.slice(0, 5).map((p) => ({
-                  id: p.place_id,
-                  main: p.structured_formatting?.main_text || p.description,
-                  secondary: p.structured_formatting?.secondary_text || '',
-                  full: p.description,
-                }))
-              );
-              setOpen(true);
-            } else {
-              void fetchOsmSuggestions(trimmed);
+      if (serviceRef.current && !isGoogleMapsAuthFailed()) {
+        let responded = false;
+        const guard = setTimeout(() => {
+          if (!responded) void fetchOsmSuggestions(trimmed);
+        }, 900);
+        try {
+          serviceRef.current.getPlacePredictions(
+            { input: trimmed, componentRestrictions: { country: 'in' } },
+            (preds, status) => {
+              responded = true;
+              clearTimeout(guard);
+              if (status === 'OK' && preds && preds.length > 0) {
+                setSuggestions(
+                  preds.slice(0, 5).map((p) => ({
+                    id: p.place_id,
+                    main: p.structured_formatting?.main_text || p.description,
+                    secondary: p.structured_formatting?.secondary_text || '',
+                    full: p.description,
+                  }))
+                );
+                setOpen(true);
+              } else {
+                void fetchOsmSuggestions(trimmed);
+              }
             }
-          }
-        );
+          );
+        } catch {
+          clearTimeout(guard);
+          void fetchOsmSuggestions(trimmed);
+        }
       } else {
         void fetchOsmSuggestions(trimmed);
       }

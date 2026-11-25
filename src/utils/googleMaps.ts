@@ -1,8 +1,19 @@
 let loaderPromise: Promise<typeof google.maps | null> | null = null;
 let loadedKey: string | null = null;
+let googleAuthFailed = false;
+const authListeners = new Set<() => void>();
+
+export function isGoogleMapsAuthFailed(): boolean {
+  return googleAuthFailed;
+}
+
+export function onGoogleMapsAuthFailed(cb: () => void): () => void {
+  authListeners.add(cb);
+  return () => authListeners.delete(cb);
+}
 
 export function loadGoogleMaps(apiKey?: string | null): Promise<typeof google.maps | null> {
-  if (!apiKey) return Promise.resolve(null);
+  if (!apiKey || googleAuthFailed) return Promise.resolve(null);
   if (typeof window !== 'undefined' && window.google?.maps) {
     return Promise.resolve(window.google.maps);
   }
@@ -10,12 +21,23 @@ export function loadGoogleMaps(apiKey?: string | null): Promise<typeof google.ma
     return loaderPromise;
   }
   loadedKey = apiKey;
+
+  if (typeof window !== 'undefined') {
+    (window as unknown as { gm_authFailure?: () => void }).gm_authFailure = () => {
+      googleAuthFailed = true;
+      authListeners.forEach((fn) => fn());
+    };
+  }
+
   loaderPromise = new Promise((resolve) => {
     const script = document.createElement('script');
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places`;
     script.async = true;
     script.defer = true;
-    script.onload = () => resolve(window.google?.maps ?? null);
+    script.onload = () => {
+      if (googleAuthFailed) resolve(null);
+      else resolve(window.google?.maps ?? null);
+    };
     script.onerror = () => resolve(null);
     document.head.appendChild(script);
   });
@@ -59,7 +81,7 @@ export async function forwardGeocode(
   apiKey?: string | null
 ): Promise<GeocodedPlace | null> {
   const maps = await loadGoogleMaps(apiKey);
-  if (maps) {
+  if (maps && !googleAuthFailed) {
     try {
       const geocoder = new maps.Geocoder();
       const res = await geocoder.geocode({
@@ -78,7 +100,7 @@ export async function forwardGeocode(
         };
       }
     } catch {
-      // fall back to OSM if Google Geocoder fails
+      // fall back to OSM
     }
   }
 
@@ -117,7 +139,7 @@ export async function reverseGeocode(
   apiKey?: string | null
 ): Promise<Omit<GeocodedPlace, 'lat' | 'lng'> | null> {
   const maps = await loadGoogleMaps(apiKey);
-  if (maps) {
+  if (maps && !googleAuthFailed) {
     try {
       const geocoder = new maps.Geocoder();
       const res = await geocoder.geocode({ location: { lat, lng } });

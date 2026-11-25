@@ -1,3 +1,5 @@
+import { ENV } from '../config/env';
+
 let loaderPromise: Promise<typeof google.maps | null> | null = null;
 let loadedKey: string | null = null;
 let googleAuthFailed = false;
@@ -13,14 +15,15 @@ export function onGoogleMapsAuthFailed(cb: () => void): () => void {
 }
 
 export function loadGoogleMaps(apiKey?: string | null): Promise<typeof google.maps | null> {
-  if (!apiKey || googleAuthFailed) return Promise.resolve(null);
+  const effectiveKey = ENV.googleMapsApiKey || apiKey || '';
+  if (!effectiveKey || googleAuthFailed) return Promise.resolve(null);
   if (typeof window !== 'undefined' && window.google?.maps) {
     return Promise.resolve(window.google.maps);
   }
-  if (loaderPromise && loadedKey === apiKey) {
+  if (loaderPromise && loadedKey === effectiveKey) {
     return loaderPromise;
   }
-  loadedKey = apiKey;
+  loadedKey = effectiveKey;
 
   if (typeof window !== 'undefined') {
     (window as unknown as { gm_authFailure?: () => void }).gm_authFailure = () => {
@@ -31,7 +34,7 @@ export function loadGoogleMaps(apiKey?: string | null): Promise<typeof google.ma
 
   loaderPromise = new Promise((resolve) => {
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(effectiveKey)}&libraries=places`;
     script.async = true;
     script.defer = true;
     script.onload = () => {

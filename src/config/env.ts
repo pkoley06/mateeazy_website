@@ -1,6 +1,7 @@
 export const ENV = {
   apiBaseUrl:
     import.meta.env.VITE_API_BASE_URL || 'https://api.mateeazy.in',
+  googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
   playStoreUrl:
     'https://play.google.com/store/apps/details?id=com.mateeazy.app',
   siteHost: 'mateeazy.in',

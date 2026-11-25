@@ -11,6 +11,7 @@ import { listingApi } from '../api/endpoints';
 import type { CommentItem, DiscoveryCard, ListingDetail } from '../types/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { trackEvent } from '../config/analytics';
 import { PhotoGallery } from '../components/PhotoGallery';
 import { CommentSection } from '../components/CommentSection';
 import { MapPreview } from '../components/MapPreview';
@@ -67,6 +68,7 @@ export function RoomDetailPage() {
 
   const handleShare = async () => {
     if (!id || !listing) return;
+    trackEvent('share', { content_type: 'room', item_id: id });
     const url = `https://mateeazy.in/room/${id}`;
     const text = `Check out this room on MateEazy: ${listing.title || listing.localityName} · ₹${listing.rentAmount}/month`;
     if (navigator.share) {

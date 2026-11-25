@@ -14,6 +14,7 @@ import { listingApi, uploadApi, userApi } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { useBranding } from '../context/BrandingContext';
 import { useToast } from '../context/ToastContext';
+import { trackEvent } from '../config/analytics';
 import { forwardGeocode, reverseGeocode } from '../utils/googleMaps';
 import { MapPreview } from '../components/MapPreview';
 import { PlaceAutocompleteInput } from '../components/PlaceAutocompleteInput';
@@ -250,6 +251,7 @@ export function CreateListingPage() {
           .catch(() => {});
       }
 
+      if (!isEdit) trackEvent('listing_published', { room_type: roomType });
       showToast(isEdit ? 'Room updated!' : 'Room published!', 'success');
       navigate(`/discover/room/${saved.id}`, { replace: true });
     } catch (err) {

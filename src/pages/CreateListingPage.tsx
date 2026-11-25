@@ -41,7 +41,7 @@ export function CreateListingPage() {
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const { refreshProfile } = useAuth();
-  const { mapsApiKey } = useBranding();
+  const { googleMapsApiKey } = useBranding();
   const { showToast } = useToast();
 
   const [step, setStep] = useState<WizardStep>(0);
@@ -144,7 +144,7 @@ export function CreateListingPage() {
     setLatitude(lat);
     setLongitude(lng);
     setHasGps(true);
-    const rev = await reverseGeocode(lat, lng, mapsApiKey);
+    const rev = await reverseGeocode(lat, lng, googleMapsApiKey);
     if (rev) {
       if (rev.locality) setLocalityName(rev.locality);
       if (rev.city) setCity(rev.city);
@@ -547,7 +547,7 @@ export function CreateListingPage() {
                     showToast('Enter locality or city first to pin on map', 'info');
                     return;
                   }
-                  const hit = await forwardGeocode(q, mapsApiKey);
+                  const hit = await forwardGeocode(q, googleMapsApiKey);
                   if (hit) {
                     setLatitude(hit.lat);
                     setLongitude(hit.lng);

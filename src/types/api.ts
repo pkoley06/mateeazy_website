@@ -259,7 +259,7 @@ export interface SharePreview {
 export interface BrandingConfig {
   communityEnabled: boolean;
   gifsEnabled?: boolean;
-  mapsApiKey?: string | null;
+  googleMapsApiKey?: string | null;
   privacyPolicyUrl?: string | null;
   termsOfServiceUrl?: string | null;
 }

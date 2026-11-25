@@ -18,6 +18,7 @@ interface Suggestion {
   main: string;
   secondary: string;
   full: string;
+  place?: GeocodedPlace;
 }
 
 export function PlaceAutocompleteInput({
@@ -25,7 +26,7 @@ export function PlaceAutocompleteInput({
   onSelect,
   className = 'input-well',
 }: PlaceAutocompleteInputProps) {
-  const { mapsApiKey } = useBranding();
+  const { googleMapsApiKey } = useBranding();
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
@@ -34,7 +35,7 @@ export function PlaceAutocompleteInput({
   const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
 
   useEffect(() => {
-    loadGoogleMaps(mapsApiKey).then((maps) => {
+    loadGoogleMaps(googleMapsApiKey).then((maps) => {
       if (!maps?.places) return;
       if (!serviceRef.current) {
         serviceRef.current = new maps.places.AutocompleteService();
@@ -45,7 +46,65 @@ export function PlaceAutocompleteInput({
         );
       }
     });
-  }, [mapsApiKey]);
+  }, [googleMapsApiKey]);
+
+  const fetchOsmSuggestions = async (trimmed: string) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&countrycodes=in&q=${encodeURIComponent(trimmed)}`
+      );
+      if (!res.ok) return;
+      const list = (await res.json()) as Array<{
+        place_id: number;
+        lat: string;
+        lon: string;
+        display_name: string;
+        address?: {
+          suburb?: string;
+          neighbourhood?: string;
+          city?: string;
+          town?: string;
+          state?: string;
+          postcode?: string;
+        };
+      }>;
+      if (list.length > 0) {
+        setSuggestions(
+          list.map((item) => {
+            const parts = item.display_name.split(',').map((s) => s.trim());
+            const locality =
+              item.address?.suburb ||
+              item.address?.neighbourhood ||
+              parts[0] ||
+              '';
+            const city = item.address?.city || item.address?.town || parts[1] || '';
+            return {
+              id: String(item.place_id),
+              main: parts[0] || item.display_name,
+              secondary: parts.slice(1, 4).join(', '),
+              full: item.display_name,
+              place: {
+                lat: parseFloat(item.lat),
+                lng: parseFloat(item.lon),
+                locality,
+                city,
+                state: item.address?.state || '',
+                postalCode: item.address?.postcode || '',
+                label: [locality, city].filter(Boolean).join(', ') || parts[0],
+              },
+            };
+          })
+        );
+        setOpen(true);
+      } else {
+        setSuggestions([]);
+        setOpen(false);
+      }
+    } catch {
+      setSuggestions([]);
+      setOpen(false);
+    }
+  };
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -71,11 +130,12 @@ export function PlaceAutocompleteInput({
               );
               setOpen(true);
             } else {
-              setSuggestions([]);
-              setOpen(false);
+              void fetchOsmSuggestions(trimmed);
             }
           }
         );
+      } else {
+        void fetchOsmSuggestions(trimmed);
       }
     }, 220);
 
@@ -85,6 +145,10 @@ export function PlaceAutocompleteInput({
   const pickSuggestion = async (s: Suggestion) => {
     setOpen(false);
     setQuery('');
+    if (s.place) {
+      onSelect(s.place);
+      return;
+    }
     if (placesServiceRef.current) {
       placesServiceRef.current.getDetails(
         {
@@ -125,14 +189,14 @@ export function PlaceAutocompleteInput({
             });
             return;
           }
-          const fallback = await forwardGeocode(s.full, mapsApiKey);
+          const fallback = await forwardGeocode(s.full, googleMapsApiKey);
           if (fallback) onSelect(fallback);
         }
       );
       return;
     }
 
-    const fallback = await forwardGeocode(s.full, mapsApiKey);
+    const fallback = await forwardGeocode(s.full, googleMapsApiKey);
     if (fallback) onSelect(fallback);
   };
 
@@ -145,7 +209,7 @@ export function PlaceAutocompleteInput({
     }
     const q = query.trim();
     if (!q) return;
-    const hit = await forwardGeocode(q, mapsApiKey);
+    const hit = await forwardGeocode(q, googleMapsApiKey);
     if (hit) {
       setOpen(false);
       setQuery('');

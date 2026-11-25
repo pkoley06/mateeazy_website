@@ -20,7 +20,7 @@ export function MapPreview({
   radiusKm,
   onPickLocation,
 }: MapPreviewProps) {
-  const { mapsApiKey } = useBranding();
+  const { googleMapsApiKey } = useBranding();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markerRef = useRef<google.maps.Marker | null>(null);
@@ -29,7 +29,7 @@ export function MapPreview({
 
   useEffect(() => {
     let cancelled = false;
-    loadGoogleMaps(mapsApiKey).then((maps) => {
+    loadGoogleMaps(googleMapsApiKey).then((maps) => {
       if (cancelled) return;
       if (!maps || !containerRef.current) {
         setUseFallbackEmbed(true);
@@ -99,7 +99,7 @@ export function MapPreview({
     return () => {
       cancelled = true;
     };
-  }, [lat, lng, radiusKm, mapsApiKey, onPickLocation]);
+  }, [lat, lng, radiusKm, googleMapsApiKey, onPickLocation]);
 
   const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
   const gmapsEmbedUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;

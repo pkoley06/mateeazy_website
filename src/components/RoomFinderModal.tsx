@@ -16,7 +16,7 @@ interface RoomFinderModalProps {
 
 export function RoomFinderModal({ onClose, onSaved }: RoomFinderModalProps) {
   const { profile, refreshProfile } = useAuth();
-  const { mapsApiKey } = useBranding();
+  const { googleMapsApiKey } = useBranding();
   const { showToast } = useToast();
 
   const [isRoomSeeker, setIsRoomSeeker] = useState(profile?.isRoomSeeker ?? false);
@@ -51,7 +51,7 @@ export function RoomFinderModal({ onClose, onSaved }: RoomFinderModalProps) {
         const nextLng = pos.coords.longitude;
         setLat(nextLat);
         setLng(nextLng);
-        const rev = await reverseGeocode(nextLat, nextLng, mapsApiKey);
+        const rev = await reverseGeocode(nextLat, nextLng, googleMapsApiKey);
         if (rev?.label) setLocality(rev.label);
       },
       () => showToast('Location permission denied', 'error')

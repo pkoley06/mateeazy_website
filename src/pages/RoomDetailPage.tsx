@@ -4,12 +4,11 @@ import {
   ArrowLeft,
   Heart,
   Share2,
-  MessageCircle,
   MapPin,
   Check,
   ShieldAlert,
 } from 'lucide-react';
-import { chatApi, listingApi } from '../api/endpoints';
+import { listingApi } from '../api/endpoints';
 import type { CommentItem, DiscoveryCard, ListingDetail } from '../types/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -29,7 +28,6 @@ export function RoomDetailPage() {
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [liked, setLiked] = useState(passedCard?.likedByMe ?? false);
   const [loading, setLoading] = useState(true);
-  const [messaging, setMessaging] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!id) return;
@@ -94,50 +92,12 @@ export function RoomDetailPage() {
     }
   };
 
-  const handleMessageHost = async () => {
-    if (!listing || messaging) return;
-    setMessaging(true);
-    try {
-      const conv = await chatApi.startOrGetConversation(
-        listing.hostUserId,
-        listing.id
-      );
-      navigate(`/chat/${conv.id}`);
-    } catch (err) {
-      showToast(
-        err instanceof Error ? err.message : 'Could not start conversation',
-        'error'
-      );
-    } finally {
-      setMessaging(false);
-    }
-  };
-
-  const handleAddComment = async (content: string, parentId?: string) => {
-    if (!id) return;
-    await listingApi.addComment(id, content, parentId);
-    const res = await listingApi.getComments(id);
-    setComments(Array.isArray(res) ? res : res.content || []);
-  };
-
-  const handleDeleteComment = async (commentId: string) => {
-    if (!id) return;
-    await listingApi.deleteComment(commentId);
-    const res = await listingApi.getComments(id);
-    setComments(Array.isArray(res) ? res : res.content || []);
-  };
-
-  const handleToggleCommentLike = async (commentId: string) => {
-    if (!id) return;
-    await listingApi.toggleCommentLike(commentId);
-    const res = await listingApi.getComments(id);
-    setComments(Array.isArray(res) ? res : res.content || []);
-  };
-
   if (loading) {
     return (
-      <div className="card" style={{ padding: 32, textAlign: 'center' }}>
-        Loading room details...
+      <div style={{ maxWidth: 780, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="skeleton" style={{ width: '100%', aspectRatio: '16/10', borderRadius: 22 }} />
+        <div className="skeleton" style={{ width: '100%', height: 180, borderRadius: 22 }} />
+        <div className="skeleton" style={{ width: '100%', height: 88, borderRadius: 22 }} />
       </div>
     );
   }
@@ -352,15 +312,9 @@ export function RoomDetailPage() {
             Edit listing
           </Link>
         ) : (
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={handleMessageHost}
-            disabled={messaging}
-          >
-            <MessageCircle size={18} />
-            <span>{messaging ? 'Opening chat...' : 'Message host'}</span>
-          </button>
+          <Link to={`/users/${listing.hostUserId}`} className="btn-secondary">
+            View profile
+          </Link>
         )}
       </div>
 
@@ -368,9 +322,24 @@ export function RoomDetailPage() {
       <div className="card" style={{ padding: 20, marginTop: 16 }}>
         <CommentSection
           comments={comments}
-          onAdd={handleAddComment}
-          onDelete={handleDeleteComment}
-          onToggleLike={handleToggleCommentLike}
+          onAdd={async (content, parentId) => {
+            if (!id) return;
+            await listingApi.addComment(id, content, parentId);
+            const res = await listingApi.getComments(id);
+            setComments(Array.isArray(res) ? res : res.content || []);
+          }}
+          onDelete={async (commentId) => {
+            if (!id) return;
+            await listingApi.deleteComment(commentId);
+            const res = await listingApi.getComments(id);
+            setComments(Array.isArray(res) ? res : res.content || []);
+          }}
+          onToggleLike={async (commentId) => {
+            if (!id) return;
+            await listingApi.toggleCommentLike(commentId);
+            const res = await listingApi.getComments(id);
+            setComments(Array.isArray(res) ? res : res.content || []);
+          }}
         />
       </div>
     </div>

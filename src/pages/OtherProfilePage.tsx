@@ -1,16 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, MapPin } from 'lucide-react';
-import { chatApi, userApi } from '../api/endpoints';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, MapPin } from 'lucide-react';
+import { userApi } from '../api/endpoints';
 import type { OtherUserProfile } from '../types/api';
-import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
 export function OtherProfilePage() {
   const { userId: targetId } = useParams<{ userId: string }>();
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { userId: myId } = useAuth();
   const { showToast } = useToast();
 
   const [user, setUser] = useState<OtherUserProfile | null>(null);
@@ -27,24 +24,17 @@ export function OtherProfilePage() {
       .finally(() => setLoading(false));
   }, [targetId, showToast]);
 
-  const handleMessage = async () => {
-    if (!user) return;
-    try {
-      const conv = await chatApi.startOrGetConversation(user.id);
-      navigate(`/chat/${conv.id}`);
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Could not open chat', 'error');
-    }
-  };
-
   if (loading) {
-    return <div className="card" style={{ padding: 28, textAlign: 'center' }}>Loading profile...</div>;
+    return (
+      <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="skeleton" style={{ width: '100%', height: 180, borderRadius: 22 }} />
+        <div className="skeleton" style={{ width: '100%', height: 220, borderRadius: 22 }} />
+      </div>
+    );
   }
   if (!user) {
     return <div className="card" style={{ padding: 28, textAlign: 'center' }}>User not found</div>;
   }
-
-  const canMessage = user.id !== myId && searchParams.get('from') !== 'chat';
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto' }}>
@@ -74,12 +64,6 @@ export function OtherProfilePage() {
               </div>
             )}
           </div>
-          {canMessage && (
-            <button type="button" className="btn-primary" onClick={handleMessage}>
-              <MessageCircle size={16} />
-              <span>Message</span>
-            </button>
-          )}
         </div>
 
         {user.bio && <p style={{ marginTop: 16, fontSize: 14 }}>{user.bio}</p>}
@@ -98,7 +82,7 @@ export function OtherProfilePage() {
           <h2 style={{ fontSize: 20, marginBottom: 12 }}>Active listings</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
             {user.activeListings.map((l) => (
-              <Link key={l.id} to={`/discover/room/${l.id}`} className="card" style={{ overflow: 'hidden' }}>
+              <Link key={l.id} to={`/discover/room/${l.id}`} className="card card-interactive" style={{ overflow: 'hidden' }}>
                 <img
                   src={l.photoUrls[0] || '/assets/img/room-balcony.jpg'}
                   alt={l.title || 'Room'}

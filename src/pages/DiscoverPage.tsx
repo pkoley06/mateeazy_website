@@ -166,12 +166,15 @@ export function DiscoverPage() {
             gap: 16,
           }}
         >
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="card"
-              style={{ height: 320, background: 'var(--surface-alt)', opacity: 0.6 }}
-            />
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="card" style={{ overflow: 'hidden' }}>
+              <div className="skeleton" style={{ aspectRatio: '4/3', borderRadius: 0 }} />
+              <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="skeleton" style={{ height: 18, width: '75%' }} />
+                <div className="skeleton" style={{ height: 13, width: '50%' }} />
+                <div className="skeleton" style={{ height: 24, width: '40%' }} />
+              </div>
+            </div>
           ))}
         </div>
       ) : cards.length === 0 ? (
@@ -205,7 +208,7 @@ export function DiscoverPage() {
             return (
               <article
                 key={card.listingId || `${card.hostUserId}-${idx}`}
-                className="card"
+                className="card card-interactive"
                 style={{ overflow: 'hidden', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
                 onClick={() => {
                   if (isRoom) {

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Phone } from 'lucide-react';
 import type { ConfirmationResult, RecaptchaVerifier } from 'firebase/auth';
 import { createPhoneRecaptcha, sendPhoneOtpWeb } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
@@ -67,27 +67,35 @@ export function PhoneLoginPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'grid',
-        placeItems: 'center',
-        padding: 20,
-      }}
-    >
+    <div className="auth-page">
       <div style={{ width: '100%', maxWidth: 420 }}>
-        <Link to="/welcome" className="btn-ghost" style={{ marginBottom: 14 }}>
+        <Link to="/welcome" className="btn-ghost" style={{ marginBottom: 14, paddingLeft: 8 }}>
           <ArrowLeft size={16} />
-          <span>Back</span>
+          <span>Back to sign in</span>
         </Link>
 
-        <div className="card" style={{ padding: 28 }}>
-          <h1 style={{ fontSize: 26, marginBottom: 6 }}>
+        <div className="card" style={{ padding: '32px 28px', boxShadow: 'var(--shadow-lg)' }}>
+          <div
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 16,
+              background: 'var(--chip)',
+              color: 'var(--coral)',
+              display: 'grid',
+              placeItems: 'center',
+              marginBottom: 16,
+            }}
+          >
+            <Phone size={24} />
+          </div>
+
+          <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 6 }}>
             {confirmation ? 'Enter verification code' : 'Sign in with phone'}
           </h1>
-          <p style={{ color: 'var(--muted)', fontSize: 14, margin: '0 0 20px' }}>
+          <p style={{ color: 'var(--muted)', fontSize: 14, margin: '0 0 22px' }}>
             {confirmation
-              ? `We sent a 6-digit code to ${countryCode} ${phone}`
+              ? `We sent a 6-digit SMS code to ${countryCode} ${phone}`
               : "We'll send you a one-time SMS verification code."}
           </p>
 
@@ -96,7 +104,7 @@ export function PhoneLoginPage() {
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
                   className="input-well"
-                  style={{ width: 82 }}
+                  style={{ width: 82, textAlign: 'center', fontWeight: 600 }}
                   value={countryCode}
                   onChange={(e) => setCountryCode(e.target.value)}
                   aria-label="Country code"
@@ -110,8 +118,8 @@ export function PhoneLoginPage() {
                   required
                 />
               </div>
-              <button type="submit" className="btn-primary" disabled={loading}>
-                {loading ? 'Sending...' : 'Send OTP'}
+              <button type="submit" className="btn-primary" disabled={loading} style={{ padding: '13px 20px' }}>
+                {loading ? 'Sending OTP...' : 'Send OTP'}
               </button>
             </form>
           ) : (
@@ -122,11 +130,12 @@ export function PhoneLoginPage() {
                 inputMode="numeric"
                 maxLength={6}
                 placeholder="6-digit OTP"
+                style={{ fontSize: 20, letterSpacing: 6, textAlign: 'center', fontWeight: 700 }}
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
                 required
               />
-              <button type="submit" className="btn-primary" disabled={loading}>
+              <button type="submit" className="btn-primary" disabled={loading} style={{ padding: '13px 20px' }}>
                 {loading ? 'Verifying...' : 'Verify & Continue'}
               </button>
               <button

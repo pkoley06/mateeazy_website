@@ -47,9 +47,13 @@ export function OnboardingPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 20 }}>
-      <div className="card" style={{ width: '100%', maxWidth: 480, padding: 28 }}>
-        <h1 style={{ fontSize: 26, marginBottom: 6 }}>Tell us about yourself</h1>
+    <div className="auth-page">
+      <div className="card" style={{ width: '100%', maxWidth: 480, padding: '32px 28px', boxShadow: 'var(--shadow-lg)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <img src="/assets/img/logo.svg" alt="MateEazy" width={36} height={36} />
+          <span className="chip coral">Quick setup</span>
+        </div>
+        <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 6 }}>Tell us about yourself</h1>
         <p style={{ color: 'var(--muted)', fontSize: 14, margin: '0 0 20px' }}>
           This helps flatmates get to know you.
         </p>

@@ -5,7 +5,8 @@ import React, {
   useEffect,
   useState,
 } from 'react';
-import { signOut as firebaseSignOut } from 'firebase/auth';
+import { getApps } from 'firebase/app';
+import { getAuth, signOut as firebaseSignOut } from 'firebase/auth';
 import {
   clearStoredAuth,
   getStoredToken,
@@ -13,7 +14,6 @@ import {
   setUnauthorizedHandler,
 } from '../api/client';
 import { authApi, userApi } from '../api/endpoints';
-import { firebaseAuth } from '../config/firebase';
 import type { AuthSession, PrefilledUserData, UserProfile } from '../types/api';
 
 export type AuthStatus =
@@ -107,7 +107,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setScheduledPurgeAt(null);
     setStatus('unauthenticated');
     try {
-      await firebaseSignOut(firebaseAuth);
+      if (getApps().length) {
+        await firebaseSignOut(getAuth());
+      }
     } catch {
       // ignore
     }

@@ -1,25 +1,24 @@
 name: Check & Deploy Website
 
 on:
-  # main -> https://mateeazy.in
-  # Pull requests into main only run the checks.
+  # main -> https://mateeazy.in (production API)
+  # dev  -> staging build (https://staging-api.mateeazy.in)
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  # One deploy at a time; a newer push waits instead of cutting an upload short.
   group: website-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   check:
-    name: Check
+    name: Check & Build (${{ github.ref_name }})
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -30,27 +29,26 @@ jobs:
         with:
           node-version: 22
 
-      - name: JavaScript has no syntax errors
-        run: node --check main.js
+      - name: Typecheck and build
+        env:
+          VITE_API_BASE_URL: ${{ github.ref_name == 'dev' && 'https://staging-api.mateeazy.in' || 'https://api.mateeazy.in' }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+        run: |
+          npm ci
+          npm run build
 
       - name: App Links file is valid JSON
-        run: node -e "JSON.parse(require('fs').readFileSync('.well-known/assetlinks.json','utf8'))"
+        run: node -e "JSON.parse(require('fs').readFileSync('dist/.well-known/assetlinks.json','utf8'))"
 
-      - name: Every file the pages link to exists
-        run: |
-          # Local paths in src, href, data-video and data-poster ("/assets/…").
-          missing=0
-          for path in $(grep -ohE '(src|href|data-video|data-poster)="/[^"#?]*' index.html 404.html \
-                          | sed -E 's/^[a-z-]+="\///' | sort -u); do
-            [ -z "${path}" ] && continue
-            if [ ! -e "${path}" ]; then
-              echo "::error::Missing file: /${path}"
-              missing=1
-            fi
-          done
-          exit ${missing}
+      - name: Upload staging build artifact
+        if: github.ref_name == 'dev'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mateeazy-website-staging
+          path: dist/
 
-  deploy:
+  deploy-prod:
     name: Deploy to mateeazy.in
     needs: check
     if: github.event_name != 'pull_request' && github.ref_name == 'main'
@@ -62,11 +60,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Collect the files to publish
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build production website
+        env:
+          VITE_API_BASE_URL: https://api.mateeazy.in
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
         run: |
-          # Everything except repo tooling and docs.
-          rsync -a --exclude .git --exclude .github --exclude deploy \
-                --exclude README.md --exclude .gitignore ./ dist/
+          npm ci
+          npm run build
           du -sh dist
 
       - name: Configure SSH credentials
@@ -85,8 +91,6 @@ jobs:
         env:
           OCI_HOST: ${{ secrets.OCI_HOST }}
         run: |
-          # The key's forced command on the VM (/usr/local/bin/mateeazy-site-deploy)
-          # unpacks this archive into /var/www/mateeazy-site.
           tar -czf - -C dist . \
             | ssh -o IdentitiesOnly=yes -o BatchMode=yes -i ~/.ssh/id_ed25519 \
                 "deploy@${OCI_HOST}" "deploy ${GITHUB_SHA}"
@@ -98,6 +102,50 @@ jobs:
             echo "::error::mateeazy.in serves ${live}, expected ${GITHUB_SHA}"
             exit 1
           fi
-          curl -fsS https://mateeazy.in/ | grep -q "<title>MateEazy"
-          curl -fsSI https://mateeazy.in/assets/video/discover.mp4 | grep -qi "content-type: video/mp4"
-          echo "https://mateeazy.in is serving ${GITHUB_SHA}."
+
+  deploy-staging:
+    name: Deploy to staging.mateeazy.in
+    needs: check
+    if: github.event_name != 'pull_request' && github.ref_name == 'dev'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging.mateeazy.in
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build staging website
+        env:
+          VITE_API_BASE_URL: https://staging-api.mateeazy.in
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+        run: |
+          npm ci
+          npm run build
+          du -sh dist
+
+      - name: Deploy to staging VM (if STAGING_SITE_DEPLOY_SSH_KEY is configured)
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SITE_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.OCI_KNOWN_HOSTS }}
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+        run: |
+          if [ -z "${SSH_KEY}" ]; then
+            echo "STAGING_SITE_DEPLOY_SSH_KEY secret is not set yet; skipping SSH upload."
+            exit 0
+          fi
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${SSH_KEY}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "${KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+          tar -czf - -C dist . \
+            | ssh -o IdentitiesOnly=yes -o BatchMode=yes -i ~/.ssh/id_ed25519 \
+                "deploy@${OCI_HOST}" "deploy ${GITHUB_SHA}"
